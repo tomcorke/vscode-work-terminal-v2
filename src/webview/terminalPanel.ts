@@ -138,6 +138,7 @@ export class TerminalPanel {
   private resizeObserver: ResizeObserver;
   private tabBarResizeObserver: ResizeObserver | null = null;
   private tabBarOverflowFrame: number | null = null;
+  private dismissOverflowMenu: (() => void) | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
@@ -529,13 +530,12 @@ export class TerminalPanel {
     const launchBtn = document.createElement("button");
     launchBtn.className = "wt-spawn-btn wt-spawn-custom";
     launchBtn.textContent = "...";
-    launchBtn.title = "Launch profile";
-    launchBtn.setAttribute("aria-label", "Launch profile");
+    launchBtn.title = "More profile actions";
+    launchBtn.setAttribute("aria-label", "More profile actions");
+    launchBtn.setAttribute("aria-haspopup", "menu");
+    launchBtn.setAttribute("aria-expanded", "false");
     launchBtn.addEventListener("click", () => {
-      this.postMessage({
-        type: "requestLaunchModal",
-        itemId: this.selectedItemId ?? undefined,
-      });
+      this.showOverflowMenu(launchBtn);
     });
     this.tabButtonsEl.appendChild(launchBtn);
 
@@ -701,6 +701,135 @@ export class TerminalPanel {
   // -------------------------------------------------------------------------
   // Context menu
   // -------------------------------------------------------------------------
+
+  private showOverflowMenu(anchorEl: HTMLElement): void {
+    const wasExpanded = anchorEl.getAttribute("aria-expanded") === "true";
+    this.dismissOverflowMenu?.();
+    if (wasExpanded) {
+      return;
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "wt-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.tabIndex = -1;
+    menu.style.minWidth = "180px";
+    anchorEl.setAttribute("aria-expanded", "true");
+
+    const dismissMenu = () => {
+      if (!menu.isConnected) {
+        anchorEl.setAttribute("aria-expanded", "false");
+        this.dismissOverflowMenu = null;
+        return;
+      }
+
+      menu.remove();
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+      anchorEl.setAttribute("aria-expanded", "false");
+      this.dismissOverflowMenu = null;
+      anchorEl.focus();
+    };
+    this.dismissOverflowMenu = dismissMenu;
+
+    const menuItems: HTMLButtonElement[] = [];
+
+    const focusItem = (index: number) => {
+      if (menuItems.length === 0) {
+        return;
+      }
+
+      const targetIndex = (index + menuItems.length) % menuItems.length;
+      menuItems[targetIndex].focus();
+    };
+
+    const addItem = (label: string, action: () => void) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "wt-context-menu-item wt-context-menu-item-button";
+      el.setAttribute("role", "menuitem");
+      el.textContent = label;
+      el.addEventListener("mouseenter", () => {
+        el.focus();
+      });
+      el.addEventListener("click", () => {
+        dismissMenu();
+        action();
+      });
+      menu.appendChild(el);
+      menuItems.push(el);
+    };
+
+    addItem("Launch Profile", () => {
+      this.postMessage({
+        type: "requestLaunchModal",
+        itemId: this.selectedItemId ?? undefined,
+      });
+    });
+
+    addItem("Agent Profiles", () => {
+      this.postMessage({ type: "getProfiles" });
+    });
+
+    document.body.appendChild(menu);
+
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let left = anchorRect.right - menuRect.width;
+    let top = anchorRect.bottom + 4;
+
+    if (left < 0) {
+      left = 0;
+    }
+    if (left + menuRect.width > window.innerWidth) {
+      left = Math.max(0, window.innerWidth - menuRect.width);
+    }
+    if (top + menuRect.height > window.innerHeight) {
+      top = Math.max(0, anchorRect.top - menuRect.height - 4);
+    }
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    const dismiss = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node) && e.target !== anchorEl) {
+        dismissMenu();
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
+
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          dismissMenu();
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          focusItem(currentIndex + 1);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          focusItem(currentIndex - 1);
+          break;
+        case "Home":
+          e.preventDefault();
+          focusItem(0);
+          break;
+        case "End":
+          e.preventDefault();
+          focusItem(menuItems.length - 1);
+          break;
+      }
+    };
+
+    requestAnimationFrame(() => {
+      document.addEventListener("mousedown", dismiss);
+      document.addEventListener("keydown", onKeyDown);
+      focusItem(0);
+    });
+  }
 
   private showTabContextMenu(index: number, x: number, y: number): void {
     const existing = document.querySelector(".wt-context-menu");
