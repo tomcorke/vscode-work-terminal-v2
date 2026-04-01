@@ -49,14 +49,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           this._pendingMessages = [];
           break;
         case "itemSelected":
-          // Open the panel and focus the terminal for this item
-          (async () => {
-            await vscode.commands.executeCommand("workTerminal.openPanel");
-            await vscode.commands.executeCommand(
-              "workTerminal.selectItem",
-              message.id,
-            );
-          })();
+          // Route through the panel's message handler so sidebar selection
+          // follows the same singleton reuse path as other sidebar actions.
+          void this._forwardToPanel(message);
           break;
         case "createItem":
           // Forward to panel
