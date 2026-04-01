@@ -211,6 +211,7 @@ export class WorkTerminalPanel {
   async initProfileManager(globalState: vscode.Memento): Promise<void> {
     this._profileManager = new AgentProfileManager(globalState);
     await this._profileManager.load();
+    this._sendButtonProfiles();
   }
 
   get profileManager(): AgentProfileManager | null {
