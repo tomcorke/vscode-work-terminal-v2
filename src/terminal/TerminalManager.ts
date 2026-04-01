@@ -181,7 +181,14 @@ export class TerminalManager {
         const claudeResult = buildClaudeArgs(
           {
             claudeExtraArgs: config.get<string>("claudeExtraArgs"),
-            additionalAgentContext: config.get<string>("additionalAgentContext"),
+            // Only pass additionalAgentContext for plain "claude" sessions.
+            // For "claude-with-context", the contextPrompt from resolveContextPrompt()
+            // already includes the additionalAgentContext fallback, so passing it here
+            // would double-append it.
+            additionalAgentContext:
+              sessionType === "claude-with-context"
+                ? undefined
+                : config.get<string>("additionalAgentContext"),
           },
           agentSessionId,
           sessionType === "claude-with-context" ? options.contextPrompt : undefined,
