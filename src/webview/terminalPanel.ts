@@ -580,7 +580,7 @@ export class TerminalPanel {
   }
 
   private checkTabBarOverflow(): void {
-    const tabEls = this.tabsContainerEl.querySelectorAll(".wt-tab:not(.wt-tab-placeholder)");
+    const tabEls = this.tabsContainerEl.querySelectorAll(".wt-tab");
     if (tabEls.length === 0) {
       this.tabBarEl.classList.remove("wt-tab-bar-expanded");
       return;
