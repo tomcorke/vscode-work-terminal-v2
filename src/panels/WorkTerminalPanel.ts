@@ -482,7 +482,27 @@ export class WorkTerminalPanel {
       if (!input) return;
       title = input;
     }
-    const result = await this._workItemService.createItem(title, column);
+
+    // Show placeholder card immediately while file is being created
+    const placeholderId = `__pending_${Date.now()}`;
+    const targetColumn = column || this._adapter!.config.creationColumns[0]?.id || "";
+    this.postMessage({ type: "addPlaceholder", placeholderId, title, column: targetColumn });
+
+    let result: Awaited<ReturnType<typeof this._workItemService.createItem>>;
+    try {
+      result = await this._workItemService.createItem(title, column);
+    } catch {
+      this.postMessage({ type: "failPlaceholder", placeholderId });
+      return;
+    }
+
+    // Resolve placeholder to real card
+    if (result) {
+      this.postMessage({ type: "resolvePlaceholder", placeholderId, realId: result.id });
+    } else {
+      this.postMessage({ type: "failPlaceholder", placeholderId });
+    }
+
     await this._refreshItems();
 
     if (result && result.enrichmentDone) {

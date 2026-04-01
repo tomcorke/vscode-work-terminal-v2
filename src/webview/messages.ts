@@ -87,4 +87,7 @@ export type ExtensionMessage =
   | { type: "selectItem"; itemId: string }
   | { type: "setIngesting"; itemId: string }
   | { type: "clearIngesting"; itemId: string }
+  | { type: "addPlaceholder"; placeholderId: string; title: string; column: string }
+  | { type: "resolvePlaceholder"; placeholderId: string; realId: string }
+  | { type: "failPlaceholder"; placeholderId: string }
   | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] };

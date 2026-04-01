@@ -330,6 +330,32 @@ html, body {
 /* Ingesting indicator */
 .wt-card-is-ingesting {
   border-left: 2px solid var(--vscode-progressBar-background, #0078d4);
+  overflow: hidden;
+}
+
+/* Shine sweep overlay during ingesting */
+.wt-card-is-ingesting::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 55%,
+    transparent 70%
+  );
+  animation: wt-card-shine 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes wt-card-shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .wt-card-ingesting-badge {
@@ -340,12 +366,72 @@ html, body {
   padding: 1px 5px;
   font-size: 10px;
   white-space: nowrap;
-  animation: wt-pulse 1.5s ease-in-out infinite;
+  animation: wt-ingesting-pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes wt-pulse {
+@keyframes wt-ingesting-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ---------------------------------------------------------------------------
+   Success animation: green border fade + rising bar
+   --------------------------------------------------------------------------- */
+
+.wt-card-success {
+  animation: wt-success-border-fade 4s ease-out forwards;
+}
+
+@keyframes wt-success-border-fade {
+  0% { border-left-color: #38a169; border-left-width: 3px; }
+  20% { border-left-color: #38a169; border-left-width: 3px; }
+  100% { border-left-color: var(--wt-task-color, transparent); border-left-width: 3px; }
+}
+
+/* Rising bar below card */
+.wt-card-success::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  background: rgba(56, 161, 105, 0.12);
+  border-radius: 0 0 4px 4px;
+  animation: wt-success-bar-rise 3.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes wt-success-bar-rise {
+  0% { height: 0; opacity: 0.8; }
+  30% { height: 100%; opacity: 0.6; }
+  100% { height: 100%; opacity: 0; }
+}
+
+/* ---------------------------------------------------------------------------
+   Placeholder / pending card
+   --------------------------------------------------------------------------- */
+
+.wt-card-pending {
+  opacity: 0.6;
+  border-left-color: var(--vscode-progressBar-background, #0078d4);
+}
+
+.wt-card-pending .wt-card-title {
+  font-style: italic;
+}
+
+/* Error state: red background, fades out */
+.wt-card-error {
+  background: rgba(229, 62, 62, 0.15) !important;
+  border-left-color: #e53e3e !important;
+  animation: wt-error-fade 2s ease-out forwards;
+}
+
+@keyframes wt-error-fade {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Goal tag */
