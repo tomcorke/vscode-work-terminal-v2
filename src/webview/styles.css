@@ -594,6 +594,32 @@ html, body {
   overflow-y: auto !important;
 }
 
+/* Scroll-to-bottom button */
+.wt-scroll-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  background: var(--vscode-button-background, rgba(255, 255, 255, 0.15));
+  color: var(--vscode-button-foreground, #fff);
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.wt-scroll-btn:hover {
+  opacity: 1;
+}
+
 /* =============================================================================
    Placeholder / empty state
    ============================================================================= */
