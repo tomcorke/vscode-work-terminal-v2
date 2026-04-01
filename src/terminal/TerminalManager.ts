@@ -96,6 +96,17 @@ export class TerminalManager {
   onAgentStateChanged?: (sessionId: string, state: AgentState) => void;
 
   private getDefaultCwd(): string {
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const configured = config.get<string>("defaultTerminalCwd", "").trim();
+    if (configured) {
+      if (configured === "~") {
+        return os.homedir();
+      }
+      if (configured.startsWith("~/")) {
+        return path.join(os.homedir(), configured.slice(2));
+      }
+      return configured;
+    }
     const folders = vscode.workspace.workspaceFolders;
     if (folders && folders.length > 0) {
       return folders[0].uri.fsPath;
@@ -104,6 +115,11 @@ export class TerminalManager {
   }
 
   private getDefaultShell(): string {
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const configured = config.get<string>("defaultShell", "").trim();
+    if (configured) {
+      return configured;
+    }
     const platform = os.platform();
     if (platform === "win32") {
       return process.env.COMSPEC || "cmd.exe";

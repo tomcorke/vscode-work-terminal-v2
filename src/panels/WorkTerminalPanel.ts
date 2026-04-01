@@ -220,7 +220,13 @@ export class WorkTerminalPanel {
     }
     this._sessionTrackers.clear();
     this._fileWatcher?.dispose();
-    this._terminalManager.disposeAll();
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const keepAlive = config.get<boolean>("keepSessionsAlive", true);
+    if (!keepAlive) {
+      this._terminalManager.disposeAll();
+    }
+
     this._panel.dispose();
   }
 
