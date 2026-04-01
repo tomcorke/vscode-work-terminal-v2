@@ -849,6 +849,12 @@ a.wt-card-source--jira:hover {
   gap: 2px;
 }
 
+.wt-spawn-profile-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 .wt-spawn-custom {
   min-width: 28px;
   text-align: center;
