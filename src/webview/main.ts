@@ -1,6 +1,7 @@
 import type { WebviewApi } from "../types/vscode";
 import type { WebviewMessage, ExtensionMessage } from "./messages";
 import { ListPanel } from "./listPanel";
+import { TerminalPanel } from "./terminalPanel";
 
 const vscode: WebviewApi = acquireVsCodeApi();
 
@@ -17,6 +18,7 @@ function postMessage(msg: WebviewMessage): void {
 // ---------------------------------------------------------------------------
 
 let listPanel: ListPanel | null = null;
+let terminalPanel: TerminalPanel | null = null;
 
 window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
   const message = event.data;
@@ -27,7 +29,16 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       }
       break;
     case "terminalOutput":
-      // Will be handled by terminal panel module
+      terminalPanel?.writeOutput(message.sessionId, message.data);
+      break;
+    case "terminalCreated":
+      terminalPanel?.addTerminal(message.sessionId, message.label, message.sessionType);
+      break;
+    case "terminalClosed":
+      terminalPanel?.removeTerminal(message.sessionId);
+      break;
+    case "agentStateChanged":
+      terminalPanel?.updateAgentState(message.sessionId, message.state);
       break;
     case "sessionStateChanged":
       if (listPanel) {
@@ -84,9 +95,8 @@ function initDivider(): void {
 // ---------------------------------------------------------------------------
 
 function handleThemeChange(): void {
-  // VS Code injects updated CSS variables automatically when the theme
-  // changes. This handler is a hook for any additional work needed
-  // (e.g. re-rendering canvas-based components like xterm).
+  // Re-apply theme to xterm instances when VS Code theme changes
+  terminalPanel?.refreshTheme();
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +125,7 @@ function initToolbar(): void {
 
 function init(): void {
   listPanel = new ListPanel(vscode);
+  terminalPanel = new TerminalPanel(postMessage);
   initDivider();
   initToolbar();
   postMessage({ type: "ready" });

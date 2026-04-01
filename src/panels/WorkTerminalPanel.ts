@@ -5,6 +5,8 @@ import type { WebviewMessage, ExtensionMessage } from "../webview/messages";
 import { WorkItemService } from "../services/WorkItemService";
 import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
+import { TerminalManager } from "../terminal/TerminalManager";
+import type { SessionType } from "../core/session/types";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -20,9 +22,11 @@ export class WorkTerminalPanel {
   private _workItemService: WorkItemService | null = null;
   private _fileWatcher: FileWatcher | null = null;
   private _adapter: AdapterBundle | null = null;
+  private readonly _terminalManager: TerminalManager;
 
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
+    this._terminalManager = new TerminalManager();
 
     this._panel = vscode.window.createWebviewPanel(
       "workTerminal",
@@ -38,6 +42,7 @@ export class WorkTerminalPanel {
     this._panel.onDidDispose(() => {
       this._disposed = true;
       this._fileWatcher?.dispose();
+      this._terminalManager.disposeAll();
       WorkTerminalPanel.current = undefined;
     });
 
@@ -46,6 +51,20 @@ export class WorkTerminalPanel {
     });
 
     this._panel.webview.html = this._getHtml(this._panel.webview);
+
+    // Wire up terminal manager callbacks
+    this._terminalManager.onOutput = (sessionId, data) => {
+      this.postMessage({ type: "terminalOutput", sessionId, data });
+    };
+    this._terminalManager.onCreated = (sessionId, label, sessionType) => {
+      this.postMessage({ type: "terminalCreated", sessionId, label, sessionType });
+    };
+    this._terminalManager.onClosed = (sessionId) => {
+      this.postMessage({ type: "terminalClosed", sessionId });
+    };
+    this._terminalManager.onAgentStateChanged = (sessionId, state) => {
+      this.postMessage({ type: "agentStateChanged", sessionId, state });
+    };
   }
 
   /**
@@ -111,6 +130,7 @@ export class WorkTerminalPanel {
 
   dispose(): void {
     this._fileWatcher?.dispose();
+    this._terminalManager.disposeAll();
     this._panel.dispose();
   }
 
@@ -166,10 +186,22 @@ export class WorkTerminalPanel {
         // Filtering is handled entirely in the webview
         break;
       case "launchTerminal":
-        // Will be implemented in terminal integration feature
+        this._handleLaunchTerminal(message.itemId, message.profile);
         break;
       case "terminalInput":
-        // Will be implemented in terminal integration feature
+        this._terminalManager.writeToTerminal(message.sessionId, message.data);
+        break;
+      case "terminalResize":
+        this._terminalManager.resizeTerminal(message.sessionId, message.cols, message.rows);
+        break;
+      case "createTerminal":
+        this._handleCreateTerminal(message.terminalType, message.itemId);
+        break;
+      case "closeTerminal":
+        this._terminalManager.destroyTerminal(message.sessionId);
+        break;
+      case "renameTerminal":
+        this._terminalManager.renameTerminal(message.sessionId, message.label);
         break;
       default:
         break;
@@ -220,6 +252,25 @@ export class WorkTerminalPanel {
     }
 
     await this._refreshItems();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Terminal launch handlers
+  // ---------------------------------------------------------------------------
+
+  private _handleLaunchTerminal(itemId: string, profile?: string): void {
+    const sessionType: SessionType = (profile as SessionType) || "shell";
+    this._terminalManager.createTerminal({ sessionType, itemId });
+  }
+
+  private _handleCreateTerminal(terminalType: string, itemId?: string): void {
+    const typeMap: Record<string, SessionType> = {
+      shell: "shell",
+      claude: "claude",
+      copilot: "copilot",
+    };
+    const sessionType = typeMap[terminalType] || "shell";
+    this._terminalManager.createTerminal({ sessionType, itemId });
   }
 
   // ---------------------------------------------------------------------------
