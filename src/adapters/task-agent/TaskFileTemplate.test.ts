@@ -63,6 +63,27 @@ describe("generateTaskContent", () => {
     expect(content).toContain("has-blocker: false");
   });
 
+  it("includes enrichment instruction sections", () => {
+    const content = generateTaskContent("Test", "todo");
+    expect(content).toContain("## Context");
+    expect(content).toContain("## Source");
+    expect(content).toContain("Created via prompt.");
+    expect(content).toContain("## Enrichment Notes");
+    expect(content).toContain("## Next Steps");
+    expect(content).toContain("- [ ] Triage and prioritise");
+    expect(content).toContain("## Task Rules");
+    expect(content).toContain("activity log entries dated and chronological");
+  });
+
+  it("includes split source info in Source section", () => {
+    const content = generateTaskContent("Split task", "todo", {
+      filename: "TASK-20260327-1200-source-task.md",
+      title: "Source task",
+    });
+    expect(content).toContain("Split from [[TASK-20260327-1200-source-task]] - Source task");
+    expect(content).not.toContain("Created via prompt.");
+  });
+
   it("uses block list syntax for split task related links", () => {
     const content = generateTaskContent("Split task", "todo", {
       filename: "TASK-20260327-1200-source-task.md",

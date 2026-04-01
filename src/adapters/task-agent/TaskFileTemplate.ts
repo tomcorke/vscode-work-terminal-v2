@@ -60,6 +60,23 @@ updated: ${now}
 ---
 # ${title}
 
+## Context
+
+
+## Source
+${splitFrom ? `Split from [[${splitFrom.filename.replace(/\.md$/, "")}]] - ${splitFrom.title}` : "Created via prompt."}
+
+## Enrichment Notes
+
+
+## Next Steps
+- [ ] Triage and prioritise
+
+## Task Rules
+- Keep activity log entries dated and chronological, with newer entries appended at the bottom
+- If the activity log grows beyond 5 long entries or 10 short entries, move it to \`../logs/<task-basename>-activity-log.md\` and replace this section with a link
+- If this task links to an external activity log, append future log entries there instead of back into this file
+
 ## Activity Log
 - **${dateStr}** - Task created${activitySuffix}
 `;

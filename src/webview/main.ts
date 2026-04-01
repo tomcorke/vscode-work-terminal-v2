@@ -65,6 +65,12 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       // Triggered by keybinding - forward to extension to show input flow
       postMessage({ type: "createItem", title: "" });
       break;
+    case "setIngesting":
+      listPanel?.setIngesting(message.itemId);
+      break;
+    case "clearIngesting":
+      listPanel?.clearIngesting(message.itemId);
+      break;
     default:
       break;
   }
