@@ -6,6 +6,7 @@ import { WorkItemService } from "../services/WorkItemService";
 import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
 import { getNonce, expandTilde } from "../core/utils";
+import { dangerConfirm } from "../core/dangerConfirm";
 import { TerminalManager } from "../terminal/TerminalManager";
 import { isSessionType, type SessionType } from "../core/session/types";
 import { SessionManager } from "../session/SessionManager";
@@ -104,6 +105,20 @@ export class WorkTerminalPanel {
     };
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
       this.postMessage({ type: "agentStateChanged", sessionId, state });
+    };
+    this._terminalManager.onRenamed = (sessionId, newLabel) => {
+      // Allow adapter to transform the detected label
+      const label = this._adapter?.transformSessionLabel?.(
+        this._terminalManager.getSessionInfo(sessionId)?.label ?? "",
+        newLabel,
+      ) ?? newLabel;
+      this._terminalManager.renameTerminal(sessionId, label);
+      this.postMessage({ type: "terminalRenamed", sessionId, label });
+      // Update session state on the sidebar
+      const itemId = this._getItemIdForSession(sessionId);
+      if (itemId) {
+        this._postSessionStateForItem(itemId);
+      }
     };
 
     // Track file renames so the detail editor URI stays current
@@ -502,6 +517,9 @@ export class WorkTerminalPanel {
       case "contextMenuDelete":
         this._handleDeleteItem(message.itemId);
         break;
+      case "doneAndCloseSessions":
+        this._handleDoneAndCloseSessions(message.itemId);
+        break;
       case "moveToTop":
         this._handleMoveToTop(message.itemId);
         break;
@@ -586,7 +604,26 @@ export class WorkTerminalPanel {
 
   private async _handleDeleteItem(id: string): Promise<void> {
     if (!this._workItemService) return;
+    const item = this._workItemService.getItemById(id);
+    const label = item ? `Delete "${item.title}"` : "Delete this item";
+    if (!await dangerConfirm(label)) return;
     await this._workItemService.deleteItem(id);
+    await this._refreshItems();
+  }
+
+  private async _handleDoneAndCloseSessions(itemId: string): Promise<void> {
+    if (!this._workItemService) return;
+    const item = this._workItemService.getItemById(itemId);
+    if (!item) return;
+
+    const sessionCount = this._terminalManager.getSessionsForItem(itemId).length;
+    const sessionNote = sessionCount > 0
+      ? ` and close ${sessionCount} session${sessionCount > 1 ? "s" : ""}`
+      : "";
+    if (!await dangerConfirm(`Done & Close "${item.title}"${sessionNote}`)) return;
+
+    await this._workItemService.moveItem(itemId, "done", 0);
+    this._terminalManager.closeAllForItem(itemId);
     await this._refreshItems();
   }
 
