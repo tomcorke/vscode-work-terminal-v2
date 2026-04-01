@@ -198,6 +198,52 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage("Session diagnostics copied to clipboard.");
     })
   );
+
+  // Hook management commands (work without the panel open)
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.hookStatus", () => {
+      const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? require("os").homedir();
+      const status = checkHookStatus(cwd);
+      const installed = status.scriptExists && status.hooksConfigured;
+      if (installed) {
+        vscode.window.showInformationMessage("Claude hooks: installed and configured.");
+      } else if (status.scriptExists) {
+        vscode.window.showWarningMessage("Claude hooks: script exists but settings entries are missing.");
+      } else if (status.hooksConfigured) {
+        vscode.window.showWarningMessage("Claude hooks: settings entries exist but hook script is missing.");
+      } else {
+        vscode.window.showWarningMessage("Claude hooks: not installed.");
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.installHooks", async () => {
+      const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? require("os").homedir();
+      try {
+        await installHooks(cwd);
+        vscode.window.showInformationMessage("Claude hooks installed successfully.");
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to install hooks: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.removeHooks", async () => {
+      const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? require("os").homedir();
+      try {
+        await removeHooks(cwd);
+        vscode.window.showInformationMessage("Claude hooks removed successfully.");
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to remove hooks: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    })
+  );
 }
 
 export async function deactivate(): Promise<void> {
