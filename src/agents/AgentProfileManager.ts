@@ -153,7 +153,7 @@ export class AgentProfileManager {
       case "claude":
         return "claude";
       case "copilot":
-        return "gh";
+        return "copilot";
       case "strands":
         return "strands";
       case "shell": {
@@ -199,7 +199,7 @@ export class AgentProfileManager {
 
     const claudeCmd = config.get<string>("claudeCommand", "claude");
     const claudeArgs = config.get<string>("claudeExtraArgs", "");
-    const copilotCmd = config.get<string>("copilotCommand", "gh");
+    const copilotCmd = config.get<string>("copilotCommand", "copilot");
     const copilotArgs = config.get<string>("copilotExtraArgs", "");
     const strandsCmd = config.get<string>("strandsCommand", "");
     const strandsArgs = config.get<string>("strandsExtraArgs", "");
@@ -207,7 +207,7 @@ export class AgentProfileManager {
     const hasClaudeOverrides =
       (claudeCmd && claudeCmd !== "claude") || (claudeArgs && claudeArgs.trim() !== "");
     const hasCopilotOverrides =
-      (copilotCmd && copilotCmd !== "gh") || (copilotArgs && copilotArgs.trim() !== "");
+      (copilotCmd && copilotCmd !== "copilot") || (copilotArgs && copilotArgs.trim() !== "");
     const hasStrandsOverrides =
       (strandsCmd && strandsCmd.trim() !== "") || (strandsArgs && strandsArgs.trim() !== "");
 
@@ -228,7 +228,7 @@ export class AgentProfileManager {
     if (hasCopilotOverrides) {
       for (const p of this.profiles) {
         if (p.agentType === "copilot") {
-          if (copilotCmd && copilotCmd !== "gh" && !p.command.trim()) {
+          if (copilotCmd && copilotCmd !== "copilot" && !p.command.trim()) {
             p.command = copilotCmd;
           }
           if (copilotArgs && copilotArgs.trim() && !p.arguments.trim()) {
