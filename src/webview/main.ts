@@ -78,9 +78,20 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       }
       break;
     }
-    case "debugApiState":
-      // Debug API is no longer wired to the list panel (now in sidebar)
+    case "debugApiState": {
+      // Install or remove a terminal-only debug API on window.__workTerminalDebug
+      const anyWindow = window as unknown as Record<string, unknown>;
+      if (message.enabled) {
+        anyWindow.__workTerminalDebug = {
+          panel: "terminal",
+          postMessage,
+          getActiveSessionId: () => terminalPanel?.getActiveSessionId() ?? null,
+        };
+      } else {
+        delete anyWindow.__workTerminalDebug;
+      }
       break;
+    }
     default:
       break;
   }
