@@ -61,11 +61,32 @@ export function resolveCommand(cmd: string, env?: NodeJS.ProcessEnv): string {
 }
 
 /**
- * Parse extra args string into an array, handling basic quoting.
+ * Parse extra args string into an array, handling quoted strings.
  */
 export function parseExtraArgs(extraArgs = ""): string[] {
-  const normalized = extraArgs.replace(/\\\r?\n[ \t]*/g, " ").trim();
-  return normalized ? normalized.split(/\s+/).filter(Boolean) : [];
+  const args: string[] = [];
+  let current = "";
+  let inQuote: string | null = null;
+  for (const char of extraArgs.trim()) {
+    if (inQuote) {
+      if (char === inQuote) {
+        inQuote = null;
+      } else {
+        current += char;
+      }
+    } else if (char === '"' || char === "'") {
+      inQuote = char;
+    } else if (/\s/.test(char)) {
+      if (current) {
+        args.push(current);
+        current = "";
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (current) args.push(current);
+  return args;
 }
 
 /**

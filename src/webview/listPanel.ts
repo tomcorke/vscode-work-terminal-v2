@@ -256,11 +256,11 @@ export class ListPanel {
   }
 
   private updateSessionBadge(itemId: string): void {
-    const card = this.listEl.querySelector(`[data-item-id="${itemId}"]`);
+    const card = this.findCardByItemId(itemId);
     if (!card) return;
 
     // Remove existing badge
-    const existing = card.querySelector(`[data-session-badge="${itemId}"]`);
+    const existing = card.querySelector(`[data-session-badge="${CSS.escape(itemId)}"]`);
     if (existing) existing.remove();
 
     const actionsEl = card.querySelector(".wt-card-actions");
@@ -270,7 +270,7 @@ export class ListPanel {
   }
 
   private updateAgentIndicator(itemId: string): void {
-    const card = this.listEl.querySelector(`[data-item-id="${itemId}"]`);
+    const card = this.findCardByItemId(itemId);
     if (!card) return;
 
     const info = this.state.sessionCounts.get(itemId);
@@ -288,7 +288,7 @@ export class ListPanel {
     this.listEl.querySelectorAll(".wt-card-selected").forEach((el) => {
       el.classList.remove("wt-card-selected");
     });
-    const card = this.listEl.querySelector(`[data-item-id="${id}"]`);
+    const card = this.findCardByItemId(id);
     if (card) card.classList.add("wt-card-selected");
 
     this.vscode.postMessage({ type: "itemSelected", id });
@@ -439,6 +439,10 @@ export class ListPanel {
       }
     }
     return groups;
+  }
+
+  private findCardByItemId(itemId: string): HTMLElement | null {
+    return this.listEl.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`);
   }
 
   private formatColumnLabel(colId: string): string {

@@ -6,12 +6,7 @@
  * box-drawing char in Claude's rename output) split across chunk boundaries.
  */
 import { StringDecoder } from "string_decoder";
-
-/** Strip ANSI escape codes from a string. */
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?(?:\x07|\x1b\\)|\x1b[()][0-2AB]/g, "");
-}
+import { stripAnsi } from "../core/utils";
 
 export class AgentSessionRename {
   private decoder = new StringDecoder("utf8");

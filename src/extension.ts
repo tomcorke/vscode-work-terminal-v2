@@ -164,10 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
-export function deactivate() {
+export async function deactivate(): Promise<void> {
   const panel = WorkTerminalPanel.current;
   if (panel) {
-    // Session persistence is handled in panel.dispose()
     panel.dispose();
   }
 }

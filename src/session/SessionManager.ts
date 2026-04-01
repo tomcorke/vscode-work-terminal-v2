@@ -8,7 +8,7 @@
  */
 import type * as vscode from "vscode";
 import { DataStore } from "../core/dataStore";
-import { isResumableSessionType, type PersistedSession, type StoredSession } from "../core/session/types";
+import { type PersistedSession, type StoredSession } from "../core/session/types";
 import { SessionStore } from "./SessionStore";
 import { SessionPersistence, type PersistableSession } from "./SessionPersistence";
 import { RecentlyClosedStore, type ClosedSessionEntry } from "./RecentlyClosedStore";

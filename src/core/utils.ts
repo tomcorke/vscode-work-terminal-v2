@@ -47,6 +47,19 @@ export function slugify(text: string): string {
 }
 
 /**
+ * Generate a random nonce string for CSP script tags.
+ */
+export function getNonce(): string {
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+/**
  * Convert wiki-style internal links to plain display text for UI rendering.
  * [[Doc]] -> Doc
  * [[Doc|Alias]] -> Alias

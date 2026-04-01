@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { WorkItemDTO, ExtensionMessage } from "../webview/messages";
+import { getNonce } from "../core/utils";
 
 /**
  * Sidebar webview provider showing a condensed work item list.
@@ -90,7 +91,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+    content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="${styleUri}">
   <title>Work Items</title>
@@ -109,14 +110,4 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 </body>
 </html>`;
   }
-}
-
-function getNonce(): string {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }

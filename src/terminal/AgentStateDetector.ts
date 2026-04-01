@@ -10,16 +10,9 @@
  */
 
 import type { AgentRuntimeState } from "../core/session/types";
+import { stripAnsi } from "../core/utils";
 
 export type AgentState = AgentRuntimeState;
-
-/**
- * Strip ANSI escape codes from a string.
- */
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?(?:\x07|\x1b\\)|\x1b[()][0-2AB]/g, "");
-}
 
 function normalizeWaitingLine(line: string): string {
   return line

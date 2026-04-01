@@ -5,8 +5,9 @@ import type { WebviewMessage, ExtensionMessage } from "../webview/messages";
 import { WorkItemService } from "../services/WorkItemService";
 import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
+import { getNonce } from "../core/utils";
 import { TerminalManager } from "../terminal/TerminalManager";
-import type { SessionType } from "../core/session/types";
+import { isSessionType, type SessionType } from "../core/session/types";
 import { SessionManager } from "../session/SessionManager";
 import { AgentProfileManager } from "../agents/AgentProfileManager";
 import { AgentSessionTracker } from "../agents/AgentSessionTracker";
@@ -52,13 +53,6 @@ export class WorkTerminalPanel {
     );
 
     this._panel.onDidDispose(() => {
-      this._disposed = true;
-      // Persist sessions before tearing down
-      this._sessionManager?.deactivate().catch((err) => {
-        console.error("[work-terminal] Session persist on dispose failed:", err);
-      });
-      this._fileWatcher?.dispose();
-      this._terminalManager.disposeAll();
       WorkTerminalPanel.current = undefined;
     });
 
@@ -212,6 +206,8 @@ export class WorkTerminalPanel {
   }
 
   dispose(): void {
+    if (this._disposed) return;
+    this._disposed = true;
     this._sessionManager?.deactivate().catch((err) => {
       console.error("[work-terminal] Session persist on dispose failed:", err);
     });
@@ -423,7 +419,7 @@ export class WorkTerminalPanel {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
 
-    const currentColumn = item.state === "done" ? "done" : item.state;
+    const currentColumn = item.state;
     if (currentColumn !== toColumn) {
       // Cross-column move: use mover to update state
       await this._workItemService.moveItem(itemId, toColumn, index);
@@ -440,7 +436,7 @@ export class WorkTerminalPanel {
   // ---------------------------------------------------------------------------
 
   private _handleLaunchTerminal(itemId: string, profile?: string): void {
-    const sessionType: SessionType = (profile as SessionType) || "shell";
+    const sessionType: SessionType = profile && isSessionType(profile) ? profile : "shell";
     this._terminalManager.createTerminal({ sessionType, itemId });
   }
 
@@ -547,14 +543,4 @@ export class WorkTerminalPanel {
 
     return html;
   }
-}
-
-function getNonce(): string {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }
