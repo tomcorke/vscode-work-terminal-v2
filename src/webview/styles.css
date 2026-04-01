@@ -700,6 +700,7 @@ a.wt-card-source--jira:hover {
   display: flex;
   flex-wrap: wrap;
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   gap: 4px;
   padding-left: 6px;
