@@ -144,6 +144,9 @@ const STATE_COLORS: Record<string, string> = {
   inactive: "transparent",
 };
 
+const TAB_GAP_PX = 4;
+const TAB_OVERFLOW_BUFFER_PX = 20;
+
 // ---------------------------------------------------------------------------
 // TerminalPanel
 // ---------------------------------------------------------------------------
@@ -153,6 +156,7 @@ export class TerminalPanel {
   private activeIndex = -1;
   private postMessage: (msg: WebviewMessage) => void;
   private selectedItemId: string | null = null;
+  private tabBarEl: HTMLElement;
   private tabsContainerEl: HTMLElement;
   private tabButtonsEl: HTMLElement;
   private terminalWrapperEl: HTMLElement;
@@ -160,6 +164,7 @@ export class TerminalPanel {
   private taskTitleEl: HTMLElement;
   private taskTitleTextEl: HTMLElement;
   private resizeObserver: ResizeObserver;
+  private tabBarResizeObserver: ResizeObserver | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
@@ -169,6 +174,7 @@ export class TerminalPanel {
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
 
+    this.tabBarEl = document.getElementById("tab-bar")!;
     this.tabsContainerEl = document.getElementById("tabs-container")!;
     this.tabButtonsEl = document.getElementById("tab-buttons")!;
     this.terminalWrapperEl = document.getElementById("terminal-wrapper")!;
@@ -404,6 +410,7 @@ export class TerminalPanel {
       placeholderEl.className = "wt-tab wt-tab-placeholder";
       placeholderEl.textContent = "No sessions yet";
       this.tabsContainerEl.appendChild(placeholderEl);
+      this.setupTabBarOverflowDetection();
       return;
     }
 
@@ -453,6 +460,8 @@ export class TerminalPanel {
 
       this.tabsContainerEl.appendChild(tabEl);
     }
+
+    this.setupTabBarOverflowDetection();
   }
 
   // -------------------------------------------------------------------------
@@ -543,6 +552,48 @@ export class TerminalPanel {
       });
     });
     this.tabButtonsEl.appendChild(launchBtn);
+
+    this.setupTabBarOverflowDetection();
+  }
+
+  private setupTabBarOverflowDetection(): void {
+    this.tabBarResizeObserver?.disconnect();
+    this.tabBarResizeObserver = null;
+
+    const checkOverflow = () => {
+      const tabEls = this.tabsContainerEl.querySelectorAll(".wt-tab:not(.wt-tab-placeholder)");
+      if (tabEls.length === 0) {
+        this.tabBarEl.classList.remove("wt-tab-bar-expanded");
+        return;
+      }
+
+      const wasExpanded = this.tabBarEl.classList.contains("wt-tab-bar-expanded");
+      if (wasExpanded) {
+        this.tabBarEl.classList.remove("wt-tab-bar-expanded");
+      }
+
+      let totalTabWidth = 0;
+      for (const tabEl of Array.from(tabEls)) {
+        totalTabWidth += (tabEl as HTMLElement).offsetWidth;
+      }
+      totalTabWidth += Math.max(0, tabEls.length - 1) * TAB_GAP_PX;
+
+      const barWidth = this.tabBarEl.offsetWidth;
+      const buttonsWidth = this.tabButtonsEl.offsetWidth;
+      const shouldExpand = totalTabWidth > barWidth - buttonsWidth - TAB_OVERFLOW_BUFFER_PX;
+      if (shouldExpand === wasExpanded) {
+        if (wasExpanded) {
+          this.tabBarEl.classList.add("wt-tab-bar-expanded");
+        }
+        return;
+      }
+
+      this.tabBarEl.classList.toggle("wt-tab-bar-expanded", shouldExpand);
+    };
+
+    this.tabBarResizeObserver = new ResizeObserver(checkOverflow);
+    this.tabBarResizeObserver.observe(this.tabBarEl);
+    requestAnimationFrame(checkOverflow);
   }
 
   private updateEmptyState(): void {
@@ -1125,6 +1176,7 @@ export class TerminalPanel {
 
   dispose(): void {
     this.resizeObserver.disconnect();
+    this.tabBarResizeObserver?.disconnect();
     this.hookBannerEl?.remove();
     this.hookStatusEl?.remove();
     for (const tab of this.tabs) {
