@@ -74,4 +74,6 @@ export type ExtensionMessage =
   | { type: "requestCreateItem" }
   | { type: "requestCreateTerminal"; terminalType: string }
   | { type: "requestCloseActiveTerminal" }
-  | { type: "selectItem"; itemId: string };
+  | { type: "selectItem"; itemId: string }
+  | { type: "setIngesting"; itemId: string }
+  | { type: "clearIngesting"; itemId: string };

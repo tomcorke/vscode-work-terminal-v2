@@ -459,8 +459,21 @@ export class WorkTerminalPanel {
       if (!input) return;
       title = input;
     }
-    await this._workItemService.createItem(title, column);
+    const result = await this._workItemService.createItem(title, column);
     await this._refreshItems();
+
+    if (result && result.enrichmentDone) {
+      this.postMessage({ type: "setIngesting", itemId: result.id });
+      result.enrichmentDone.then(
+        () => {
+          this.postMessage({ type: "clearIngesting", itemId: result.id });
+          this._refreshItems();
+        },
+        () => {
+          this.postMessage({ type: "clearIngesting", itemId: result.id });
+        },
+      );
+    }
   }
 
   private async _handleDeleteItem(id: string): Promise<void> {

@@ -143,11 +143,14 @@ export class WorkItemService {
   // CRUD operations
   // ---------------------------------------------------------------------------
 
-  async createItem(title: string, columnId?: string): Promise<void> {
+  async createItem(
+    title: string,
+    columnId?: string,
+  ): Promise<{ id: string; columnId: string; enrichmentDone?: Promise<void> } | void> {
     if (!this.adapter.onItemCreated) return;
     const settings: Record<string, unknown> = { ...this.settings };
     if (columnId) settings._columnId = columnId;
-    await this.adapter.onItemCreated(title, settings);
+    return this.adapter.onItemCreated(title, settings);
   }
 
   async moveItem(itemId: string, toColumn: string, index: number): Promise<boolean> {

@@ -21,6 +21,7 @@ interface ListPanelState {
   collapsedColumns: Set<string>;
   filterTerm: string;
   sessionCounts: Map<string, SessionInfo>;
+  ingestingIds: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,7 @@ export class ListPanel {
       collapsedColumns: new Set(),
       filterTerm: "",
       sessionCounts: new Map(),
+      ingestingIds: new Set(),
     };
   }
 
@@ -77,6 +79,24 @@ export class ListPanel {
       info.agentState = agentState || undefined;
     }
     this.updateAgentIndicator(itemId);
+  }
+
+  setIngesting(itemId: string): void {
+    this.state.ingestingIds.add(itemId);
+    const card = this.findCardByItemId(itemId);
+    if (card) {
+      card.classList.add("wt-card-is-ingesting");
+      this.addIngestingBadge(card);
+    }
+  }
+
+  clearIngesting(itemId: string): void {
+    this.state.ingestingIds.delete(itemId);
+    const card = this.findCardByItemId(itemId);
+    if (card) {
+      card.classList.remove("wt-card-is-ingesting");
+      card.querySelector(".wt-card-ingesting-badge")?.remove();
+    }
   }
 
   applyFilter(query: string): void {
@@ -160,6 +180,10 @@ export class ListPanel {
 
     if (item.id === this.state.selectedId) {
       card.classList.add("wt-card-selected");
+    }
+
+    if (this.state.ingestingIds.has(item.id)) {
+      card.classList.add("wt-card-is-ingesting");
     }
 
     // Color from meta
@@ -264,6 +288,11 @@ export class ListPanel {
 
     // Session badge
     this.renderSessionBadge(actionsEl, item.id);
+
+    // Ingesting badge
+    if (this.state.ingestingIds.has(item.id)) {
+      this.addIngestingBadge(card);
+    }
 
     // Click to select
     card.addEventListener("click", (e) => {
@@ -569,6 +598,16 @@ export class ListPanel {
 
   private findCardByItemId(itemId: string): HTMLElement | null {
     return this.listEl.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`);
+  }
+
+  private addIngestingBadge(card: HTMLElement): void {
+    if (card.querySelector(".wt-card-ingesting-badge")) return;
+    const metaRow = card.querySelector(".wt-card-meta");
+    if (!metaRow) return;
+    const badge = document.createElement("span");
+    badge.className = "wt-card-ingesting-badge";
+    badge.textContent = "enriching\u2026";
+    metaRow.appendChild(badge);
   }
 
   private formatColumnLabel(colId: string): string {

@@ -301,6 +301,27 @@ html, body {
   cursor: default;
 }
 
+/* Ingesting indicator */
+.wt-card-is-ingesting {
+  border-left: 2px solid var(--vscode-progressBar-background, #0078d4);
+}
+
+.wt-card-ingesting-badge {
+  display: inline-block;
+  background: rgba(0, 120, 212, 0.15);
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  white-space: nowrap;
+  animation: wt-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes wt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Goal tag */
 .wt-card-goal {
   display: inline-block;
