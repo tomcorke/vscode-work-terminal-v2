@@ -10,32 +10,8 @@
 </head>
 <body>
   <div class="wt-main-view">
-    <!-- Left panel: toolbar + list -->
-    <div class="wt-left-panel" id="left-panel">
-      <div class="wt-toolbar">
-        <button class="wt-toolbar-icon-btn" id="filter-toggle-btn" title="Toggle filter" aria-label="Toggle filter">
-          <span class="codicon codicon-filter"></span>
-        </button>
-        <button class="wt-toolbar-btn" id="new-item-btn">+ New Item</button>
-      </div>
-      <div class="wt-filter-container" id="filter-container" style="display: none;">
-        <input
-          type="text"
-          class="wt-filter-input"
-          id="filter-input"
-          placeholder="Filter items..."
-        />
-      </div>
-      <div class="wt-list-panel" id="list-panel">
-        <!-- Card sections rendered by JS -->
-      </div>
-    </div>
-
-    <!-- Resizable divider -->
-    <div class="wt-divider" id="divider"></div>
-
-    <!-- Right panel: terminal tabs -->
-    <div class="wt-right-panel" id="right-panel">
+    <!-- Terminal panel (full width - task list is now in the sidebar) -->
+    <div class="wt-terminal-panel" id="right-panel">
       <div class="wt-task-title" id="task-title">
         <div class="wt-task-title-row">
           <span class="wt-task-title-text" id="task-title-text"></span>
@@ -47,7 +23,7 @@
       </div>
       <div class="wt-terminal-wrapper" id="terminal-wrapper">
         <div class="wt-empty-state" id="empty-state">
-          Select an item to begin
+          Select an item from the sidebar to begin
         </div>
       </div>
     </div>

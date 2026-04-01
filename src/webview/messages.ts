@@ -102,4 +102,5 @@ export type ExtensionMessage =
   | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] }
   | { type: "resumeItemIds"; itemIds: string[] }
   | { type: "hookBannerState"; visible: boolean; message: string }
+  | { type: "hookStatusChanged"; installed: boolean }
   | { type: "debugApiState"; enabled: boolean };

@@ -28,6 +28,10 @@ export class WorkTerminalPanel {
   public static onItemsUpdated:
     | ((items: import("../webview/messages").WorkItemDTO[], columns: string[]) => void)
     | null = null;
+  /** Callback to forward extension messages to the sidebar webview. */
+  public static onSidebarPost:
+    | ((message: ExtensionMessage) => void)
+    | null = null;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -123,7 +127,9 @@ export class WorkTerminalPanel {
           this._idleSinceMap.delete(itemId);
         }
       }
-      this.postMessage({ type: "agentStateChanged", sessionId, state, itemId, idleSince });
+      const agentMsg: ExtensionMessage = { type: "agentStateChanged", sessionId, state, itemId, idleSince };
+      this.postMessage(agentMsg);
+      this._postToSidebar(agentMsg);
     };
     this._terminalManager.onRenamed = (sessionId, newLabel) => {
       // Allow adapter to transform the detected label
@@ -340,6 +346,21 @@ export class WorkTerminalPanel {
     }
   }
 
+  /**
+   * Post a message to the sidebar webview (for syncing session state, etc.).
+   */
+  private _postToSidebar(message: ExtensionMessage): void {
+    WorkTerminalPanel.onSidebarPost?.(message);
+  }
+
+  /**
+   * Handle a message forwarded from the sidebar webview.
+   * Re-uses the same handler as the main panel's message processing.
+   */
+  handleSidebarMessage(message: WebviewMessage): void {
+    this._handleMessage(message);
+  }
+
   // ---------------------------------------------------------------------------
   // Session state notifications
   // ---------------------------------------------------------------------------
@@ -364,13 +385,17 @@ export class WorkTerminalPanel {
       const kind: "shell" | "agent" = info?.sessionType === "shell" ? "shell" : "agent";
       return { id: sid, label: info?.label ?? "", kind };
     });
-    this.postMessage({ type: "sessionStateChanged", itemId, sessions });
+    const msg: ExtensionMessage = { type: "sessionStateChanged", itemId, sessions };
+    this.postMessage(msg);
+    this._postToSidebar(msg);
   }
 
   private _postResumeItemIds(): void {
     if (!this._sessionManager) return;
     const ids = this._sessionManager.getResumableItemIds();
-    this.postMessage({ type: "resumeItemIds", itemIds: [...ids] });
+    const msg: ExtensionMessage = { type: "resumeItemIds", itemIds: [...ids] };
+    this.postMessage(msg);
+    this._postToSidebar(msg);
   }
 
   // ---------------------------------------------------------------------------
@@ -653,34 +678,48 @@ export class WorkTerminalPanel {
     // Show placeholder card immediately while file is being created
     const placeholderId = `__pending_${Date.now()}`;
     const targetColumn = column || this._adapter!.config.creationColumns[0]?.id || "";
-    this.postMessage({ type: "addPlaceholder", placeholderId, title, column: targetColumn });
+    const phMsg: ExtensionMessage = { type: "addPlaceholder", placeholderId, title, column: targetColumn };
+    this.postMessage(phMsg);
+    this._postToSidebar(phMsg);
 
     let result: Awaited<ReturnType<typeof this._workItemService.createItem>>;
     try {
       result = await this._workItemService.createItem(title, column);
     } catch {
-      this.postMessage({ type: "failPlaceholder", placeholderId });
+      const failMsg: ExtensionMessage = { type: "failPlaceholder", placeholderId };
+      this.postMessage(failMsg);
+      this._postToSidebar(failMsg);
       return;
     }
 
     // Resolve placeholder to real card
     if (result) {
-      this.postMessage({ type: "resolvePlaceholder", placeholderId, realId: result.id });
+      const resolveMsg: ExtensionMessage = { type: "resolvePlaceholder", placeholderId, realId: result.id };
+      this.postMessage(resolveMsg);
+      this._postToSidebar(resolveMsg);
     } else {
-      this.postMessage({ type: "failPlaceholder", placeholderId });
+      const failMsg: ExtensionMessage = { type: "failPlaceholder", placeholderId };
+      this.postMessage(failMsg);
+      this._postToSidebar(failMsg);
     }
 
     await this._refreshItems();
 
     if (result && result.enrichmentDone) {
-      this.postMessage({ type: "setIngesting", itemId: result.id });
+      const ingestMsg: ExtensionMessage = { type: "setIngesting", itemId: result.id };
+      this.postMessage(ingestMsg);
+      this._postToSidebar(ingestMsg);
       result.enrichmentDone.then(
         () => {
-          this.postMessage({ type: "clearIngesting", itemId: result.id });
+          const clearMsg: ExtensionMessage = { type: "clearIngesting", itemId: result.id };
+          this.postMessage(clearMsg);
+          this._postToSidebar(clearMsg);
           this._refreshItems();
         },
         () => {
-          this.postMessage({ type: "clearIngesting", itemId: result.id });
+          const clearMsg: ExtensionMessage = { type: "clearIngesting", itemId: result.id };
+          this.postMessage(clearMsg);
+          this._postToSidebar(clearMsg);
         },
       );
     }

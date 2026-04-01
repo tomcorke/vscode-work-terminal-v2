@@ -195,6 +195,10 @@ export class TerminalPanel {
 
   /** Current active tab index. */
   getActiveIndex(): number { return this.activeIndex; }
+  getActiveSessionId(): string | null {
+    const tab = this.tabs[this.activeIndex];
+    return tab?.sessionId ?? null;
+  }
 
   // -------------------------------------------------------------------------
   // Terminal lifecycle
