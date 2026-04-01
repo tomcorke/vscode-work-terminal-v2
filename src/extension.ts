@@ -187,6 +187,20 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.resetTour", async () => {
+      // Clear extension-tracked tour completion state
+      await context.globalState.update("tourCompleted", undefined);
+      // Re-open the walkthrough so the user can go through it again
+      await vscode.commands.executeCommand(
+        "workbench.action.openWalkthrough",
+        "tomcorke.vscode-work-terminal-v2#workTerminal.gettingStarted",
+        false,
+      );
+      vscode.window.showInformationMessage("Guided tour has been reset.");
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.copyDiagnostics", async () => {
       const panel = WorkTerminalPanel.current;
       if (!panel) {
