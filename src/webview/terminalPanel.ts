@@ -510,7 +510,7 @@ export class TerminalPanel {
 
     input.addEventListener("blur", commit);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); input.blur(); }
       else if (e.key === "Escape") { e.preventDefault(); input.removeEventListener("blur", commit); this.renderTabBar(); }
     });
 
