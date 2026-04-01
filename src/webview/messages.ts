@@ -35,6 +35,7 @@ export type WebviewMessage =
   | { type: "copyToClipboard"; text: string }
   | { type: "contextMenuMove"; itemId: string; toColumn: string }
   | { type: "contextMenuDelete"; itemId: string }
+  | { type: "doneAndCloseSessions"; itemId: string }
   | { type: "moveToTop"; itemId: string }
   | { type: "requestLaunchModal" };
 
@@ -73,6 +74,7 @@ export type ExtensionMessage =
   | { type: "terminalOutput"; sessionId: string; data: string }
   | { type: "terminalCreated"; sessionId: string; label: string; sessionType: string; itemId?: string }
   | { type: "terminalClosed"; sessionId: string }
+  | { type: "terminalRenamed"; sessionId: string; label: string }
   | { type: "agentStateChanged"; sessionId: string; state: string }
   | {
       type: "sessionStateChanged";
