@@ -852,6 +852,30 @@ a.wt-card-source--jira:hover {
   color: var(--vscode-editor-foreground);
 }
 
+/* Close button */
+.wt-profile-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 4px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.wt-profile-close-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+  color: var(--vscode-editor-foreground);
+}
+
 /* Profile list */
 .wt-profile-list {
   display: flex;
@@ -1089,6 +1113,22 @@ a.wt-card-source--jira:hover {
 .wt-profile-editor textarea {
   min-height: 60px;
   resize: vertical;
+}
+
+.wt-field-hint {
+  margin: 2px 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.85;
+}
+
+.wt-field-hint code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .wt-profile-editor-buttons {

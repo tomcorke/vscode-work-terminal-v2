@@ -106,6 +106,34 @@ function getOrCreateOverlay(): HTMLElement {
 
 function setOverlayContent(overlay: HTMLElement, html: string): void {
   overlay.innerHTML = `<div class="wt-profile-dialog">${html}</div>`;
+  initColorSync(overlay);
+}
+
+function initColorSync(container: HTMLElement): void {
+  const textInput = container.querySelector<HTMLInputElement>('input[name="buttonColor"]');
+  const picker = container.querySelector<HTMLInputElement>('input[name="buttonColorPicker"]');
+  const swatch = container.querySelector<HTMLElement>(".wt-color-preview-swatch");
+  if (!textInput || !picker || !swatch) return;
+
+  const updateSwatch = (color: string) => {
+    swatch.style.backgroundColor = color || "transparent";
+    swatch.classList.toggle("wt-color-preview-swatch--empty", !color);
+  };
+
+  textInput.addEventListener("input", () => {
+    const val = textInput.value.trim();
+    updateSwatch(val);
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+      picker.value = val;
+    }
+  });
+
+  picker.addEventListener("input", () => {
+    textInput.value = picker.value;
+    updateSwatch(picker.value);
+  });
+
+  updateSwatch(textInput.value.trim());
 }
 
 function handleProfileList(message: Extract<ExtensionMessage, { type: "profileList" }>): void {
@@ -167,6 +195,11 @@ function handleProfileAction(e: Event): void {
     }
     case "exportProfiles": {
       postMessage({ type: "exportProfiles" });
+      break;
+    }
+    case "closeOverlay": {
+      const overlay = document.getElementById("profile-overlay");
+      if (overlay) overlay.remove();
       break;
     }
   }
