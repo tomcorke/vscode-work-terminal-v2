@@ -71,6 +71,15 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "clearIngesting":
       listPanel?.clearIngesting(message.itemId);
       break;
+    case "addPlaceholder":
+      listPanel?.addPlaceholder(message.placeholderId, message.title, message.column);
+      break;
+    case "resolvePlaceholder":
+      listPanel?.resolvePlaceholder(message.placeholderId, message.realId);
+      break;
+    case "failPlaceholder":
+      listPanel?.failPlaceholder(message.placeholderId);
+      break;
     case "buttonProfiles":
       terminalPanel?.updateButtonProfiles(message.profiles);
       break;
