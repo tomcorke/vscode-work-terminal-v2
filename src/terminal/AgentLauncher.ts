@@ -15,6 +15,8 @@ const EXTRA_PATH_DIRS = [
   "~/.nvm/versions/node/current/bin",
   "/usr/local/bin",
   "/opt/homebrew/bin",
+  // VS Code Copilot CLI location
+  "~/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli",
 ];
 
 function expandTilde(p: string): string {
@@ -157,13 +159,12 @@ export function buildAgentLaunchArgs(
     }
     case "copilot":
     case "copilot-with-context": {
-      const command = resolveCommand(settings.copilotCommand || "gh");
-      const baseArgs = ["copilot"];
+      const command = resolveCommand(settings.copilotCommand || "copilot");
       const extraArgs = buildCopilotArgs(
         { copilotExtraArgs: settings.copilotExtraArgs },
         sessionType === "copilot-with-context" ? prompt : undefined,
       );
-      return { command, args: [...baseArgs, ...extraArgs] };
+      return { command, args: extraArgs };
     }
     default: {
       // Custom profile or shell - return as-is
