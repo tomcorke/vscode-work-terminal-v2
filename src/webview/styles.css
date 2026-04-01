@@ -1131,6 +1131,42 @@ a.wt-card-source--jira:hover {
   border-radius: 3px;
 }
 
+/* Color input row: text + picker + swatch */
+.wt-color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wt-color-input-row input[type="text"] {
+  flex: 1;
+}
+
+.wt-color-picker {
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--vscode-input-border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.wt-color-preview-swatch {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--vscode-input-border, rgba(255, 255, 255, 0.1));
+}
+
+.wt-color-preview-swatch--empty {
+  background: transparent;
+  border-style: dashed;
+}
+
 .wt-profile-editor-buttons {
   display: flex;
   justify-content: flex-end;
