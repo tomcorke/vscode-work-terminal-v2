@@ -39,6 +39,10 @@ export class WorkTerminalPanel {
   private _profileManager: AgentProfileManager | null = null;
   private readonly _sessionTrackers = new Map<string, AgentSessionTracker>();
 
+  /** URI of the detail editor tab opened by the extension (null if none). */
+  private _detailEditorUri: vscode.Uri | null = null;
+  private _renameDisposable: vscode.Disposable | null = null;
+
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
     this._terminalManager = new TerminalManager();
@@ -55,6 +59,9 @@ export class WorkTerminalPanel {
     );
 
     this._panel.onDidDispose(() => {
+      // Panel is already gone (user clicked X or VS Code closed it).
+      // Best-effort: persist sessions before tearing down.
+      this._teardown();
       WorkTerminalPanel.current = undefined;
     });
 
@@ -98,6 +105,17 @@ export class WorkTerminalPanel {
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
       this.postMessage({ type: "agentStateChanged", sessionId, state });
     };
+
+    // Track file renames so the detail editor URI stays current
+    this._renameDisposable = vscode.workspace.onDidRenameFiles((e) => {
+      if (!this._detailEditorUri) return;
+      for (const { oldUri, newUri } of e.files) {
+        if (oldUri.toString() === this._detailEditorUri.toString()) {
+          this._detailEditorUri = newUri;
+          break;
+        }
+      }
+    });
   }
 
   /**
@@ -212,7 +230,40 @@ export class WorkTerminalPanel {
     }
   }
 
-  dispose(): void {
+  /**
+   * Whether there are active terminal sessions running.
+   */
+  get hasActiveSessions(): boolean {
+    return this._terminalManager.activeSessionCount > 0;
+  }
+
+  /**
+   * Show a confirmation dialog if active sessions exist and keepSessionsAlive
+   * is disabled. Returns true if the caller should proceed with closing.
+   */
+  static async confirmClose(): Promise<boolean> {
+    const panel = WorkTerminalPanel.current;
+    if (!panel || !panel.hasActiveSessions) return true;
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const keepAlive = config.get<boolean>("keepSessionsAlive", true);
+    if (keepAlive) return true;
+
+    const count = panel._terminalManager.activeSessionCount;
+    const label = count === 1 ? "1 active session" : `${count} active sessions`;
+    const answer = await vscode.window.showWarningMessage(
+      `Work Terminal has ${label}. Close anyway?`,
+      { modal: true },
+      "Close",
+    );
+    return answer === "Close";
+  }
+
+  /**
+   * Internal cleanup shared by dispose() and onDidDispose.
+   * Persists sessions and tears down watchers/trackers.
+   */
+  private _teardown(): void {
     if (this._disposed) return;
     this._disposed = true;
     this._sessionManager?.deactivate().catch((err) => {
@@ -224,13 +275,18 @@ export class WorkTerminalPanel {
     }
     this._sessionTrackers.clear();
     this._fileWatcher?.dispose();
+    this._renameDisposable?.dispose();
+    this._closeDetailEditor();
 
     const config = vscode.workspace.getConfiguration("workTerminal");
     const keepAlive = config.get<boolean>("keepSessionsAlive", true);
     if (!keepAlive) {
       this._terminalManager.disposeAll();
     }
+  }
 
+  dispose(): void {
+    this._teardown();
     this._panel.dispose();
   }
 
@@ -510,10 +566,40 @@ export class WorkTerminalPanel {
     const item = this._workItemService.getItemById(id);
     if (!item?.path) return;
     const uri = vscode.Uri.file(item.path);
+
+    // Close the previously opened detail tab (if any) before opening the new one
+    this._closeDetailEditor();
+
     await vscode.window.showTextDocument(uri, {
       viewColumn: vscode.ViewColumn.Beside,
       preview: true,
     });
+    this._detailEditorUri = uri;
+  }
+
+  /**
+   * Close the detail editor tab opened by this extension, if it is still
+   * showing. Uses the VS Code tab API to identify and close only the tab
+   * that matches the tracked URI, without affecting user-opened tabs.
+   */
+  private _closeDetailEditor(): void {
+    if (!this._detailEditorUri) return;
+    const targetStr = this._detailEditorUri.toString();
+    this._detailEditorUri = null;
+
+    for (const group of vscode.window.tabGroups.all) {
+      for (const tab of group.tabs) {
+        if (
+          tab.input instanceof vscode.TabInputText &&
+          tab.input.uri.toString() === targetStr
+        ) {
+          vscode.window.tabGroups.close(tab).then(undefined, () => {
+            // Tab may already be closed - ignore
+          });
+          return;
+        }
+      }
+    }
   }
 
   private async _handleMoveItem(id: string, toColumn: string, index: number): Promise<void> {
