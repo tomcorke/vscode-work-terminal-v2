@@ -134,6 +134,7 @@ export class ListPanel {
     // Queue success animation for the real card on next render
     this.state.pendingSuccessIds.add(realId);
     this.render();
+    this.scrollToTop();
   }
 
   failPlaceholder(placeholderId: string): void {
