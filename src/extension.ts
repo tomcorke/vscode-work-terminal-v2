@@ -173,6 +173,16 @@ export function activate(context: vscode.ExtensionContext) {
       panel.postMessage({ type: "focusFilter" });
     })
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.startTour", () => {
+      vscode.commands.executeCommand(
+        "workbench.action.openWalkthrough",
+        "tomcorke.vscode-work-terminal-v2#workTerminal.gettingStarted",
+        false,
+      );
+    })
+  );
 }
 
 export async function deactivate(): Promise<void> {

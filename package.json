@@ -91,6 +91,12 @@
         "title": "Focus Filter Input",
         "category": "Work Terminal",
         "icon": "$(search)"
+      },
+      {
+        "command": "workTerminal.startTour",
+        "title": "Start Guided Tour",
+        "category": "Work Terminal",
+        "icon": "$(info)"
       }
     ],
     "keybindings": [
@@ -225,7 +231,71 @@
           "description": "Accept agent sessions that have no resume hooks configured."
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "workTerminal.gettingStarted",
+        "title": "Getting Started with Work Terminal",
+        "description": "Learn the basics of Work Terminal - your kanban board with integrated terminals and AI agents.",
+        "steps": [
+          {
+            "id": "openPanel",
+            "title": "Open Work Terminal",
+            "description": "Work Terminal lives in a dedicated editor panel. Open it with the command palette or the keyboard shortcut.\n\n[Open Work Terminal](command:workTerminal.openPanel)",
+            "media": {
+              "markdown": "Open the panel using **Cmd+Shift+W** (macOS) or **Ctrl+Shift+W** (Windows/Linux), or run the **Work Terminal: Open Work Terminal** command from the command palette."
+            },
+            "completionEvents": [
+              "onCommand:workTerminal.openPanel"
+            ]
+          },
+          {
+            "id": "createTask",
+            "title": "Create a Task",
+            "description": "Work items are organized on a kanban board. Create your first task to get started.\n\n[New Work Item](command:workTerminal.newWorkItem)",
+            "media": {
+              "markdown": "Click the **+** button in the sidebar or use **Ctrl+Shift+N** to create a new work item. Tasks flow through columns: Priority, Todo, Active, and Archive."
+            },
+            "completionEvents": [
+              "onCommand:workTerminal.newWorkItem"
+            ]
+          },
+          {
+            "id": "launchTerminal",
+            "title": "Launch a Terminal",
+            "description": "Each work item can have multiple terminal sessions attached to it - shells and AI agents side by side.\n\n[New Shell](command:workTerminal.newShell)",
+            "media": {
+              "markdown": "Launch a **shell** with **Ctrl+`** or start an **AI agent session** (Claude, Copilot, or Strands) from the launch modal. Terminals are tabbed within each work item."
+            },
+            "completionEvents": [
+              "onCommand:workTerminal.newShell"
+            ]
+          },
+          {
+            "id": "manageProfiles",
+            "title": "Manage Profiles",
+            "description": "Agent profiles let you configure different AI agent setups with custom commands, arguments, and working directories.\n\n[Manage Agent Profiles](command:workTerminal.manageProfiles)",
+            "media": {
+              "markdown": "Create profiles for different workflows - one for code review, another for debugging, a third for documentation. Each profile stores the agent type, extra arguments, and working directory."
+            },
+            "completionEvents": [
+              "onCommand:workTerminal.manageProfiles"
+            ]
+          },
+          {
+            "id": "dragAndDrop",
+            "title": "Organize with Drag and Drop",
+            "description": "Drag work items between kanban columns to track progress. Move tasks from Priority to Todo, then Active as you work on them.",
+            "media": {
+              "markdown": "The board supports **drag and drop** between columns. Items in the **Active** column show their attached terminals. Use the sidebar for a compact list view with filtering."
+            },
+            "completionEvents": [
+              "onCommand:workTerminal.openPanel"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.config.mjs --production",
