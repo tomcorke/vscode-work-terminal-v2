@@ -61,4 +61,5 @@ export type ExtensionMessage =
   | { type: "focusFilter" }
   | { type: "requestCreateItem" }
   | { type: "requestCreateTerminal"; terminalType: string }
-  | { type: "requestCloseActiveTerminal" };
+  | { type: "requestCloseActiveTerminal" }
+  | { type: "selectItem"; itemId: string };

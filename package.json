@@ -151,7 +151,12 @@
         "workTerminal.taskBasePath": {
           "type": "string",
           "default": "2 - Areas/Tasks",
-          "description": "Path containing task folders"
+          "description": "Workspace path containing task folders (priority, todo, active, archive)"
+        },
+        "workTerminal.jiraBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Browse URL used to turn Jira keys into clickable external links (e.g. https://your-org.atlassian.net/browse)"
         }
       }
     }

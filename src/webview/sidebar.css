@@ -1,0 +1,193 @@
+/* =============================================================================
+   Sidebar - Compact work item list for VS Code sidebar (~300px)
+   ============================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-sideBar-background);
+}
+
+.wt-sb-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Toolbar / filter */
+
+.wt-sb-toolbar {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.wt-sb-filter {
+  width: 100%;
+  padding: 3px 6px;
+  font-size: 11px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-sb-filter::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.wt-sb-filter:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* Item list */
+
+.wt-sb-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 0;
+}
+
+/* Column sections */
+
+.wt-sb-section {
+  margin-bottom: 1px;
+}
+
+.wt-sb-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.wt-sb-section-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.wt-sb-collapse-icon {
+  font-size: 7px;
+  width: 8px;
+  text-align: center;
+}
+
+.wt-sb-section-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-sb-section-count {
+  color: var(--vscode-descriptionForeground);
+  font-weight: 400;
+}
+
+/* Compact cards */
+
+.wt-sb-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+  border-left: 2px solid transparent;
+}
+
+.wt-sb-card:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.wt-sb-card-selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  border-left-color: var(--vscode-focusBorder);
+}
+
+/* State indicator dot */
+.wt-sb-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wt-sb-dot-priority { background: #e53e3e; }
+.wt-sb-dot-active { background: var(--vscode-focusBorder); }
+.wt-sb-dot-todo { background: var(--vscode-descriptionForeground); }
+.wt-sb-dot-done { background: #38a169; }
+
+/* Card title */
+.wt-sb-card-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Session count badge */
+.wt-sb-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+  background: var(--vscode-badge-background);
+}
+
+/* Footer */
+
+.wt-sb-footer {
+  padding: 6px 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.wt-sb-open-btn {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-focusBorder));
+  border-radius: 2px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+}
+
+.wt-sb-open-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+/* Empty state */
+
+.wt-sb-empty {
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}

@@ -1,65 +1,23 @@
 import * as vscode from "vscode";
 import { WorkTerminalPanel } from "./panels/WorkTerminalPanel";
+import { SidebarProvider } from "./panels/SidebarProvider";
 import { TaskAgentAdapter } from "./adapters/task-agent/index";
 
-class WorkTerminalSidebarProvider implements vscode.WebviewViewProvider {
-  constructor(private readonly _extensionUri: vscode.Uri) {}
-
-  resolveWebviewView(webviewView: vscode.WebviewView) {
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(this._extensionUri, "dist"),
-      ],
-    };
-
-    webviewView.webview.html = this._getHtml(webviewView.webview);
-  }
-
-  private _getHtml(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "dist", "webview.js")
-    );
-    const nonce = getNonce();
-
-    return /* html */ `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Work Items</title>
-</head>
-<body>
-  <div id="sidebar-root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
-</body>
-</html>`;
-  }
-}
-
-function getNonce(): string {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
-}
-
 export function activate(context: vscode.ExtensionContext) {
-  const sidebarProvider = new WorkTerminalSidebarProvider(context.extensionUri);
+  const sidebarProvider = new SidebarProvider(context.extensionUri);
+  const adapter = new TaskAgentAdapter();
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "workTerminal.sidebarView",
-      sidebarProvider
-    )
+      SidebarProvider.viewType,
+      sidebarProvider,
+    ),
   );
 
-  const adapter = new TaskAgentAdapter();
+  // Wire sidebar updates from WorkTerminalPanel item refreshes
+  WorkTerminalPanel.onItemsUpdated = (items, columns) => {
+    sidebarProvider.updateItems(items, columns);
+  };
 
   context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.openPanel", async () => {
@@ -110,6 +68,26 @@ export function activate(context: vscode.ExtensionContext) {
         sessionType: entry.sessionType,
       });
     })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.selectItem", (itemId: string) => {
+      const panel = WorkTerminalPanel.current;
+      if (panel) {
+        panel.postMessage({ type: "selectItem", itemId });
+      }
+    }),
+  );
+
+  // Settings change listener
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (!e.affectsConfiguration("workTerminal")) return;
+      const panel = WorkTerminalPanel.current;
+      if (panel) {
+        panel.onSettingsChanged(adapter);
+      }
+    }),
   );
 
   context.subscriptions.push(

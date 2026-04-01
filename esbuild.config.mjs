@@ -16,6 +16,10 @@ const copyAssetsPlugin = {
         path.join("src", "webview", "styles.css"),
         path.join(distDir, "styles.css"),
       );
+      fs.copyFileSync(
+        path.join("src", "webview", "sidebar.css"),
+        path.join(distDir, "sidebar.css"),
+      );
     });
   },
 };
@@ -47,16 +51,31 @@ const webviewConfig = {
   plugins: [copyAssetsPlugin],
 };
 
+/** @type {import('esbuild').BuildOptions} */
+const sidebarConfig = {
+  entryPoints: ["src/webview/sidebarMain.ts"],
+  bundle: true,
+  outfile: "dist/sidebar.js",
+  platform: "browser",
+  format: "iife",
+  external: ["vscode"],
+  sourcemap: !isProduction,
+  minify: isProduction,
+  target: "es2020",
+};
+
 async function main() {
   if (isWatch) {
     const extCtx = await esbuild.context(extensionConfig);
     const webCtx = await esbuild.context(webviewConfig);
-    await Promise.all([extCtx.watch(), webCtx.watch()]);
+    const sbCtx = await esbuild.context(sidebarConfig);
+    await Promise.all([extCtx.watch(), webCtx.watch(), sbCtx.watch()]);
     console.log("Watching for changes...");
   } else {
     await Promise.all([
       esbuild.build(extensionConfig),
       esbuild.build(webviewConfig),
+      esbuild.build(sidebarConfig),
     ]);
     console.log("Build complete.");
   }

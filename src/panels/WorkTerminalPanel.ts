@@ -19,6 +19,9 @@ import type { AgentProfile } from "../core/agents/types";
  */
 export class WorkTerminalPanel {
   public static current: WorkTerminalPanel | undefined;
+  public static onItemsUpdated:
+    | ((items: import("../webview/messages").WorkItemDTO[], columns: string[]) => void)
+    | null = null;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -27,6 +30,7 @@ export class WorkTerminalPanel {
   private _workItemService: WorkItemService | null = null;
   private _fileWatcher: FileWatcher | null = null;
   private _adapter: AdapterBundle | null = null;
+  private _globalState: vscode.Memento | null = null;
   private readonly _terminalManager: TerminalManager;
   private _sessionManager: SessionManager | null = null;
   private _profileManager: AgentProfileManager | null = null;
@@ -166,6 +170,7 @@ export class WorkTerminalPanel {
     globalState: vscode.Memento,
   ): Promise<void> {
     this._adapter = adapter;
+    this._globalState = globalState;
     const config = vscode.workspace.getConfiguration("workTerminal");
     const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
 
@@ -268,6 +273,51 @@ export class WorkTerminalPanel {
     const columns = this._workItemService.getColumns();
 
     this.postMessage({ type: "updateItems", items, columns });
+
+    // Notify sidebar of updated items
+    WorkTerminalPanel.onItemsUpdated?.(items, columns);
+  }
+
+  /**
+   * Called when workTerminal.* settings change. Re-initializes the
+   * WorkItemService with updated configuration.
+   */
+  async onSettingsChanged(adapter: AdapterBundle): Promise<void> {
+    if (!this._workItemService || !this._globalState) return;
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
+
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const resolvedBase = workspaceFolder
+      ? path.join(workspaceFolder.uri.fsPath, basePath)
+      : basePath;
+
+    const settings: Record<string, unknown> = {
+      "adapter.taskBasePath": basePath,
+      "adapter.jiraBaseUrl": config.get<string>("jiraBaseUrl", ""),
+    };
+
+    if (adapter.onLoad) {
+      await adapter.onLoad(settings);
+    }
+
+    this._fileWatcher?.dispose();
+
+    this._workItemService = new WorkItemService(
+      adapter,
+      resolvedBase,
+      this._globalState,
+      settings,
+    );
+
+    this._fileWatcher = new FileWatcher(
+      resolvedBase,
+      (p: string) => this._workItemService?.isItemFile(p) ?? false,
+      () => this._refreshItems(),
+    );
+
+    await this._refreshItems();
   }
 
   // ---------------------------------------------------------------------------
