@@ -102,7 +102,7 @@ export function buildClaudeArgs(
   sessionId: string,
   prompt?: string,
   resumeSessionId?: string,
-): string[] {
+): { args: string[]; initialPrompt?: string } {
   const args: string[] = [];
   if (settings.claudeExtraArgs) {
     args.push(...parseExtraArgs(settings.claudeExtraArgs));
@@ -112,14 +112,16 @@ export function buildClaudeArgs(
   } else {
     args.push("--session-id", sessionId);
   }
+  // Context prompt is written to stdin after Claude reaches idle state,
+  // NOT passed as a positional arg (which triggers --print / one-shot mode).
+  let initialPrompt: string | undefined;
   if (prompt) {
-    let fullPrompt = prompt;
+    initialPrompt = prompt;
     if (settings.additionalAgentContext) {
-      fullPrompt += "\n\n" + settings.additionalAgentContext;
+      initialPrompt += "\n\n" + settings.additionalAgentContext;
     }
-    args.push(fullPrompt);
   }
-  return args;
+  return { args, initialPrompt };
 }
 
 /**
@@ -154,12 +156,12 @@ export function buildAgentLaunchArgs(
   sessionId: string,
   prompt?: string,
   resumeSessionId?: string,
-): { command: string; args: string[] } {
+): { command: string; args: string[]; initialPrompt?: string } {
   switch (sessionType) {
     case "claude":
     case "claude-with-context": {
       const command = resolveCommand(settings.claudeCommand || "claude");
-      const args = buildClaudeArgs(
+      const result = buildClaudeArgs(
         {
           claudeExtraArgs: settings.claudeExtraArgs,
           additionalAgentContext: settings.additionalAgentContext,
@@ -168,7 +170,7 @@ export function buildAgentLaunchArgs(
         sessionType === "claude-with-context" ? prompt : undefined,
         resumeSessionId,
       );
-      return { command, args };
+      return { command, args: result.args, initialPrompt: result.initialPrompt };
     }
     case "copilot":
     case "copilot-with-context": {

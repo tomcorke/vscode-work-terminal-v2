@@ -79,6 +79,8 @@ interface TerminalInstance {
   sessionRename: AgentSessionRename | null;
   disposed: boolean;
   disposables: Array<{ dispose(): void }>;
+  /** Context prompt to write to stdin once the agent reaches idle state. */
+  pendingInitialPrompt: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +166,7 @@ export class TerminalManager {
 
     let command: string;
     let args: string[];
+    let initialPrompt: string | undefined;
 
     if (options.command) {
       // Caller already resolved the command (profile-based launch)
@@ -188,6 +191,7 @@ export class TerminalManager {
       );
       command = launch.command;
       args = launch.args;
+      initialPrompt = launch.initialPrompt;
     }
 
     const cols = options.cols || 120;
@@ -206,6 +210,7 @@ export class TerminalManager {
       sessionRename: null,
       disposed: false,
       disposables: [],
+      pendingInitialPrompt: initialPrompt || null,
     };
 
     // Set up agent state detection for resumable sessions
@@ -213,6 +218,12 @@ export class TerminalManager {
       const detector = new AgentStateDetector();
       detector.onChange = (state) => {
         this.onAgentStateChanged?.(sessionId, state);
+        // When the agent first reaches idle, send any pending context prompt
+        if (state === "idle" && instance.pendingInitialPrompt) {
+          const prompt = instance.pendingInitialPrompt;
+          instance.pendingInitialPrompt = null;
+          this.writeToTerminal(sessionId, prompt + "\n");
+        }
       };
       detector.start();
       instance.stateDetector = detector;
