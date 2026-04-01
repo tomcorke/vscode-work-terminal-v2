@@ -20,6 +20,16 @@ export function activate(context: vscode.ExtensionContext) {
     sidebarProvider.updateItems(items, columns);
   };
 
+  // Wire sidebar message forwarding (session state, agent state, etc.)
+  WorkTerminalPanel.onSidebarPost = (message) => {
+    sidebarProvider.postMessage(message);
+  };
+
+  // Wire sidebar -> panel forwarding (replaces runtime require() in SidebarProvider)
+  sidebarProvider.onForwardToPanel = (message) => {
+    WorkTerminalPanel.current?.handleSidebarMessage(message);
+  };
+
   context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.openPanel", async () => {
       const panel = WorkTerminalPanel.createOrShow(context.extensionUri);

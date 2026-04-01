@@ -5,7 +5,7 @@
    ============================================================================= */
 
 /* =============================================================================
-   Layout: 2-column split (list | terminals)
+   Layout: full-width terminal panel (task list is in sidebar)
    ============================================================================= */
 
 html, body {
@@ -25,20 +25,9 @@ html, body {
   overflow: hidden;
 }
 
-.wt-left-panel {
-  width: 280px;
-  min-width: 200px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-right: 1px solid var(--vscode-panel-border);
-  background: var(--vscode-sideBar-background);
-}
-
-.wt-right-panel {
+/* Terminal panel takes full width */
+.wt-terminal-panel {
   flex: 1;
-  min-width: 300px;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -46,19 +35,6 @@ html, body {
   background: var(--vscode-editor-background);
 }
 
-.wt-divider {
-  width: 5px;
-  cursor: col-resize;
-  flex-shrink: 0;
-  background: var(--vscode-panel-border);
-  transition: background 0.15s;
-}
-
-.wt-divider:hover,
-.wt-divider-active {
-  background: var(--vscode-focusBorder);
-  opacity: 0.3;
-}
 
 /* =============================================================================
    Toolbar

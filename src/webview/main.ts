@@ -1,9 +1,7 @@
 import type { WebviewApi } from "../types/vscode";
 import type { WebviewMessage, ExtensionMessage } from "./messages";
-import { ListPanel } from "./listPanel";
 import { TerminalPanel } from "./terminalPanel";
 import { renderProfileList, renderProfileEditor } from "./profileManager";
-import { installDebugApi, removeDebugApi } from "./debugApi";
 import type { AgentProfile, AgentType, ParamPassMode, ProfileIcon, BorderStyle } from "../core/agents/types";
 
 const vscode: WebviewApi = acquireVsCodeApi();
@@ -17,19 +15,15 @@ function postMessage(msg: WebviewMessage): void {
 }
 
 // ---------------------------------------------------------------------------
-// List panel instance
+// Terminal panel instance
 // ---------------------------------------------------------------------------
 
-let listPanel: ListPanel | null = null;
 let terminalPanel: TerminalPanel | null = null;
 
 window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
   const message = event.data;
   switch (message.type) {
     case "updateItems":
-      if (listPanel) {
-        listPanel.updateItems(message.items, message.columns);
-      }
       terminalPanel?.updateWorkItems(message.items);
       break;
     case "terminalOutput":
@@ -46,14 +40,6 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       break;
     case "agentStateChanged":
       terminalPanel?.updateAgentState(message.sessionId, message.state);
-      if (listPanel && message.itemId) {
-        listPanel.setAgentState(message.itemId, message.state as "active" | "idle" | "waiting" | null, message.idleSince);
-      }
-      break;
-    case "sessionStateChanged":
-      if (listPanel) {
-        listPanel.updateSessionState(message.itemId, message.sessions);
-      }
       break;
     case "themeChanged":
       handleThemeChange();
@@ -73,26 +59,8 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       // Triggered by keybinding - forward to extension to show input flow
       postMessage({ type: "createItem", title: "" });
       break;
-    case "setIngesting":
-      listPanel?.setIngesting(message.itemId);
-      break;
-    case "clearIngesting":
-      listPanel?.clearIngesting(message.itemId);
-      break;
-    case "addPlaceholder":
-      listPanel?.addPlaceholder(message.placeholderId, message.title, message.column);
-      break;
-    case "resolvePlaceholder":
-      listPanel?.resolvePlaceholder(message.placeholderId, message.realId);
-      break;
-    case "failPlaceholder":
-      listPanel?.failPlaceholder(message.placeholderId);
-      break;
     case "buttonProfiles":
       terminalPanel?.updateButtonProfiles(message.profiles);
-      break;
-    case "resumeItemIds":
-      listPanel?.updateResumeItemIds(message.itemIds);
       break;
     case "hookBannerState":
       terminalPanel?.updateHookBanner(message.visible, message.message);
@@ -100,16 +68,30 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "hookStatusChanged":
       terminalPanel?.updateHookStatus(message.installed);
       break;
-    case "focusFilter":
-      showFilter();
+    case "requestCreateTerminal":
+      postMessage({ type: "createTerminal", terminalType: message.terminalType });
       break;
-    case "debugApiState":
-      if (message.enabled && listPanel && terminalPanel) {
-        installDebugApi(listPanel, terminalPanel);
-      } else {
-        removeDebugApi();
+    case "requestCloseActiveTerminal": {
+      const activeSessionId = terminalPanel?.getActiveSessionId();
+      if (activeSessionId) {
+        postMessage({ type: "closeTerminal", sessionId: activeSessionId });
       }
       break;
+    }
+    case "debugApiState": {
+      // Install or remove a terminal-only debug API on window.__workTerminalDebug
+      const anyWindow = window as unknown as Record<string, unknown>;
+      if (message.enabled) {
+        anyWindow.__workTerminalDebug = {
+          panel: "terminal",
+          postMessage,
+          getActiveSessionId: () => terminalPanel?.getActiveSessionId() ?? null,
+        };
+      } else {
+        delete anyWindow.__workTerminalDebug;
+      }
+      break;
+    }
     default:
       break;
   }
@@ -273,43 +255,6 @@ function collectProfileFromForm(editor: HTMLElement): AgentProfile {
 }
 
 // ---------------------------------------------------------------------------
-// Resizable divider
-// ---------------------------------------------------------------------------
-
-function initDivider(): void {
-  const divider = document.getElementById("divider");
-  const leftPanel = document.getElementById("left-panel");
-  if (!divider || !leftPanel) return;
-
-  let startX = 0;
-  let startWidth = 0;
-
-  const onMouseMove = (e: MouseEvent) => {
-    const delta = e.clientX - startX;
-    const newWidth = Math.max(200, startWidth + delta);
-    leftPanel.style.width = `${newWidth}px`;
-    leftPanel.style.flexBasis = `${newWidth}px`;
-    leftPanel.style.flexGrow = "0";
-    leftPanel.style.flexShrink = "0";
-  };
-
-  const onMouseUp = () => {
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-    divider.classList.remove("wt-divider-active");
-  };
-
-  divider.addEventListener("mousedown", (e: MouseEvent) => {
-    e.preventDefault();
-    startX = e.clientX;
-    startWidth = leftPanel.offsetWidth;
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    divider.classList.add("wt-divider-active");
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Theme change handling
 // ---------------------------------------------------------------------------
 
@@ -319,65 +264,11 @@ function handleThemeChange(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Toolbar handlers
-// ---------------------------------------------------------------------------
-
-function initToolbar(): void {
-  const filterInput = document.getElementById("filter-input") as HTMLInputElement | null;
-  const filterContainer = document.getElementById("filter-container");
-  const filterToggleBtn = document.getElementById("filter-toggle-btn");
-
-  if (filterInput && listPanel) {
-    filterInput.addEventListener("input", () => {
-      listPanel!.applyFilter(filterInput.value);
-    });
-  }
-
-  // Filter toggle button
-  if (filterToggleBtn && filterContainer && filterInput) {
-    filterToggleBtn.addEventListener("click", () => {
-      const isVisible = filterContainer.style.display !== "none";
-      if (isVisible) {
-        filterContainer.style.display = "none";
-        filterInput.value = "";
-        listPanel?.applyFilter("");
-        filterToggleBtn.classList.remove("wt-toolbar-icon-btn-active");
-      } else {
-        filterContainer.style.display = "";
-        filterInput.focus();
-        filterToggleBtn.classList.add("wt-toolbar-icon-btn-active");
-      }
-    });
-  }
-
-  const newItemBtn = document.getElementById("new-item-btn");
-  if (newItemBtn) {
-    newItemBtn.addEventListener("click", () => {
-      postMessage({ type: "createItem", title: "" });
-    });
-  }
-}
-
-function showFilter(): void {
-  const filterInput = document.getElementById("filter-input") as HTMLInputElement | null;
-  const filterContainer = document.getElementById("filter-container");
-  const filterToggleBtn = document.getElementById("filter-toggle-btn");
-  if (filterContainer && filterInput) {
-    filterContainer.style.display = "";
-    filterInput.focus();
-    filterToggleBtn?.classList.add("wt-toolbar-icon-btn-active");
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
 
 function init(): void {
-  listPanel = new ListPanel(vscode);
   terminalPanel = new TerminalPanel(postMessage);
-  initDivider();
-  initToolbar();
   postMessage({ type: "ready" });
 }
 

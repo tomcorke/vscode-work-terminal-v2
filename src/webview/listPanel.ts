@@ -50,9 +50,9 @@ export class ListPanel {
   private filterDebounce: ReturnType<typeof setTimeout> | null = null;
   private hasInitialized = false;
 
-  constructor(vscode: WebviewApi) {
+  constructor(vscode: WebviewApi, elementId = "list-panel") {
     this.vscode = vscode;
-    this.listEl = document.getElementById("list-panel")!;
+    this.listEl = document.getElementById(elementId)!;
     this.state = {
       items: [],
       columns: [],

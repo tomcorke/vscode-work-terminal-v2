@@ -1,184 +1,125 @@
 import type { WebviewApi } from "../types/vscode";
-
-interface WorkItemDTO {
-  id: string;
-  title: string;
-  column: string;
-  source?: string;
-  meta?: Record<string, string>;
-}
-
-interface SidebarMessage {
-  type: string;
-  items?: WorkItemDTO[];
-  columns?: string[];
-}
+import type { ExtensionMessage } from "./messages";
+import { ListPanel } from "./listPanel";
 
 const vscode: WebviewApi = acquireVsCodeApi();
 
-let items: WorkItemDTO[] = [];
-let columns: string[] = [];
-let filterTerm = "";
-let selectedId: string | null = null;
-const collapsedColumns = new Set<string>();
-let hasInitialized = false;
-
 // ---------------------------------------------------------------------------
-// Rendering
+// List panel instance (full-fidelity cards, same as main panel)
 // ---------------------------------------------------------------------------
 
-function render(): void {
-  const listEl = document.getElementById("sb-list");
-  if (!listEl) return;
-  listEl.innerHTML = "";
-
-  if (items.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "wt-sb-empty";
-    empty.textContent = "No work items";
-    listEl.appendChild(empty);
-    return;
-  }
-
-  const grouped: Record<string, WorkItemDTO[]> = {};
-  for (const col of columns) {
-    grouped[col] = [];
-  }
-  for (const item of items) {
-    if (grouped[item.column]) {
-      grouped[item.column].push(item);
-    }
-  }
-
-  for (const colId of columns) {
-    const colItems = grouped[colId] || [];
-    if (colItems.length === 0) continue;
-
-    const section = document.createElement("div");
-    section.className = "wt-sb-section";
-
-    // Header
-    const header = document.createElement("div");
-    header.className = "wt-sb-section-header";
-
-    const icon = document.createElement("span");
-    icon.className = "wt-sb-collapse-icon";
-    icon.textContent = collapsedColumns.has(colId) ? "\u25B6" : "\u25BC";
-    header.appendChild(icon);
-
-    const label = document.createElement("span");
-    label.className = "wt-sb-section-label";
-    label.textContent = formatLabel(colId);
-    header.appendChild(label);
-
-    const count = document.createElement("span");
-    count.className = "wt-sb-section-count";
-    count.textContent = String(colItems.length);
-    header.appendChild(count);
-
-    header.addEventListener("click", () => {
-      if (collapsedColumns.has(colId)) {
-        collapsedColumns.delete(colId);
-      } else {
-        collapsedColumns.add(colId);
-      }
-      render();
-    });
-
-    section.appendChild(header);
-
-    // Cards
-    if (!collapsedColumns.has(colId)) {
-      for (const item of colItems) {
-        const visible = matchesFilter(item);
-        if (!visible) continue;
-
-        const card = document.createElement("div");
-        card.className = "wt-sb-card";
-        if (item.id === selectedId) {
-          card.classList.add("wt-sb-card-selected");
-        }
-
-        // State dot
-        const dot = document.createElement("span");
-        dot.className = `wt-sb-state-dot wt-sb-dot-${colId}`;
-        card.appendChild(dot);
-
-        // Title
-        const title = document.createElement("span");
-        title.className = "wt-sb-card-title";
-        title.textContent = item.title;
-        card.appendChild(title);
-
-        // Click handler
-        card.addEventListener("click", () => {
-          selectedId = item.id;
-          vscode.postMessage({ type: "selectItem", id: item.id });
-          render();
-        });
-
-        section.appendChild(card);
-      }
-    }
-
-    listEl.appendChild(section);
-  }
-}
-
-function matchesFilter(item: WorkItemDTO): boolean {
-  if (!filterTerm) return true;
-  const searchable = [
-    item.title,
-    item.source || "",
-    item.meta?.tags || "",
-  ].join(" ").toLowerCase();
-  return searchable.includes(filterTerm);
-}
-
-function formatLabel(colId: string): string {
-  return colId.charAt(0).toUpperCase() + colId.slice(1);
-}
+let listPanel: ListPanel | null = null;
 
 // ---------------------------------------------------------------------------
 // Message handling
 // ---------------------------------------------------------------------------
 
-window.addEventListener("message", (event: MessageEvent<SidebarMessage>) => {
+window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
   const message = event.data;
   switch (message.type) {
     case "updateItems":
-      items = message.items || [];
-      columns = message.columns || [];
-      // Auto-collapse last column on first render
-      if (!hasInitialized && columns.length > 0) {
-        hasInitialized = true;
-        collapsedColumns.add(columns[columns.length - 1]);
+      if (listPanel) {
+        listPanel.updateItems(message.items, message.columns);
       }
-      render();
+      break;
+    case "sessionStateChanged":
+      if (listPanel) {
+        listPanel.updateSessionState(message.itemId, message.sessions);
+      }
+      break;
+    case "agentStateChanged":
+      if (listPanel && message.itemId) {
+        const state = message.state;
+        let agentState: "active" | "idle" | "waiting" | null = null;
+        if (state === "active" || state === "idle" || state === "waiting" || state === null) {
+          agentState = state;
+        }
+        listPanel.setAgentState(message.itemId, agentState, message.idleSince);
+      }
+      break;
+    case "setIngesting":
+      listPanel?.setIngesting(message.itemId);
+      break;
+    case "clearIngesting":
+      listPanel?.clearIngesting(message.itemId);
+      break;
+    case "addPlaceholder":
+      listPanel?.addPlaceholder(message.placeholderId, message.title, message.column);
+      break;
+    case "resolvePlaceholder":
+      listPanel?.resolvePlaceholder(message.placeholderId, message.realId);
+      break;
+    case "failPlaceholder":
+      listPanel?.failPlaceholder(message.placeholderId);
+      break;
+    case "resumeItemIds":
+      listPanel?.updateResumeItemIds(message.itemIds);
+      break;
+    case "focusFilter":
+      showFilter();
+      break;
+    default:
       break;
   }
 });
 
 // ---------------------------------------------------------------------------
-// Init
+// Toolbar handlers
+// ---------------------------------------------------------------------------
+
+function initToolbar(): void {
+  const filterInput = document.getElementById("sb-filter") as HTMLInputElement | null;
+  const filterContainer = document.getElementById("sb-filter-container");
+  const filterToggleBtn = document.getElementById("sb-filter-toggle");
+
+  if (filterInput && listPanel) {
+    filterInput.addEventListener("input", () => {
+      listPanel!.applyFilter(filterInput.value);
+    });
+  }
+
+  if (filterToggleBtn && filterContainer && filterInput) {
+    filterToggleBtn.addEventListener("click", () => {
+      const isVisible = filterContainer.style.display !== "none";
+      if (isVisible) {
+        filterContainer.style.display = "none";
+        filterInput.value = "";
+        listPanel?.applyFilter("");
+        filterToggleBtn.classList.remove("wt-toolbar-icon-btn-active");
+      } else {
+        filterContainer.style.display = "";
+        filterInput.focus();
+        filterToggleBtn.classList.add("wt-toolbar-icon-btn-active");
+      }
+    });
+  }
+
+  const newItemBtn = document.getElementById("sb-new-item");
+  if (newItemBtn) {
+    newItemBtn.addEventListener("click", () => {
+      vscode.postMessage({ type: "createItem", title: "" });
+    });
+  }
+}
+
+function showFilter(): void {
+  const filterInput = document.getElementById("sb-filter") as HTMLInputElement | null;
+  const filterContainer = document.getElementById("sb-filter-container");
+  const filterToggleBtn = document.getElementById("sb-filter-toggle");
+  if (filterContainer && filterInput) {
+    filterContainer.style.display = "";
+    filterInput.focus();
+    filterToggleBtn?.classList.add("wt-toolbar-icon-btn-active");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Initialization
 // ---------------------------------------------------------------------------
 
 function init(): void {
-  const filterInput = document.getElementById("sb-filter") as HTMLInputElement | null;
-  if (filterInput) {
-    filterInput.addEventListener("input", () => {
-      filterTerm = filterInput.value.toLowerCase();
-      render();
-    });
-  }
-
-  const openBtn = document.getElementById("sb-open-panel");
-  if (openBtn) {
-    openBtn.addEventListener("click", () => {
-      vscode.postMessage({ type: "openPanel" });
-    });
-  }
-
+  listPanel = new ListPanel(vscode, "sb-list");
+  initToolbar();
   vscode.postMessage({ type: "ready" });
 }
 
