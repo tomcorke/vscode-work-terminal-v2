@@ -151,6 +151,8 @@ const STATE_COLORS: Record<string, string> = {
 export class TerminalPanel {
   private tabs: TerminalTab[] = [];
   private activeIndex = -1;
+  private pendingTabSwitchFrame: number | null = null;
+  private disposed = false;
   private postMessage: (msg: WebviewMessage) => void;
   private selectedItemId: string | null = null;
   private tabsContainerEl: HTMLElement;
@@ -257,14 +259,20 @@ export class TerminalPanel {
     terminal.open(containerEl);
     this.attachScrollButton(containerEl, terminal);
 
-    let webglAddon: WebglAddon | null = null;
+    const tab: TerminalTab = {
+      sessionId, label, sessionType, itemId: itemId ?? null, terminal, fitAddon, searchAddon,
+      containerEl, webglAddon: null, agentState: "inactive",
+    };
+
     try {
-      webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        webglAddon?.dispose();
-        webglAddon = null;
+      const addon = new WebglAddon();
+      addon.onContextLoss(() => {
+        if (tab.webglAddon !== addon) return;
+        tab.webglAddon = null;
+        addon.dispose();
       });
-      terminal.loadAddon(webglAddon);
+      terminal.loadAddon(addon);
+      tab.webglAddon = addon;
     } catch {
       // Canvas fallback is automatic
     }
@@ -274,11 +282,6 @@ export class TerminalPanel {
     });
 
     this.attachTerminalKeyHandler(terminal, sessionId);
-
-    const tab: TerminalTab = {
-      sessionId, label, sessionType, itemId: itemId ?? null, terminal, fitAddon, searchAddon,
-      containerEl, webglAddon, agentState: "inactive",
-    };
 
     this.tabs.push(tab);
     this.switchToTab(this.tabs.length - 1);
@@ -303,10 +306,10 @@ export class TerminalPanel {
     const index = this.tabs.findIndex((t) => t.sessionId === sessionId);
     if (index === -1) return;
 
+    this.cancelPendingTabSwitchFrame();
+
     const tab = this.tabs[index];
-    tab.webglAddon?.dispose();
-    tab.terminal.dispose();
-    tab.containerEl.remove();
+    this.disposeTab(tab);
     this.tabs.splice(index, 1);
 
     if (this.tabs.length === 0) {
@@ -348,7 +351,7 @@ export class TerminalPanel {
   // -------------------------------------------------------------------------
 
   private switchToTab(index: number): void {
-    if (index < 0 || index >= this.tabs.length) return;
+    if (this.disposed || index < 0 || index >= this.tabs.length) return;
 
     for (const tab of this.tabs) tab.containerEl.classList.add("hidden");
 
@@ -358,7 +361,11 @@ export class TerminalPanel {
     this.selectedItemId = tab.itemId;
     this.syncSelectedItemUi();
 
-    requestAnimationFrame(() => {
+    this.cancelPendingTabSwitchFrame();
+    this.pendingTabSwitchFrame = requestAnimationFrame(() => {
+      this.pendingTabSwitchFrame = null;
+      if (!this.isLiveTab(tab)) return;
+
       try {
         tab.fitAddon.fit();
         const dims = tab.fitAddon.proposeDimensions();
@@ -369,9 +376,16 @@ export class TerminalPanel {
           });
         }
       } catch {
-        // fit can fail if container is zero-sized
+        // fit can fail if container is zero-sized or the terminal is being disposed
       }
-      tab.terminal.focus();
+
+      if (!this.isLiveTab(tab)) return;
+
+      try {
+        tab.terminal.focus();
+      } catch {
+        // focus can fail if the terminal was disposed while the frame was pending
+      }
     });
   }
 
@@ -1123,15 +1137,36 @@ export class TerminalPanel {
   // Cleanup
   // -------------------------------------------------------------------------
 
+  private cancelPendingTabSwitchFrame(): void {
+    if (this.pendingTabSwitchFrame === null) return;
+    cancelAnimationFrame(this.pendingTabSwitchFrame);
+    this.pendingTabSwitchFrame = null;
+  }
+
+  private isLiveTab(tab: TerminalTab): boolean {
+    return !this.disposed && this.tabs.includes(tab);
+  }
+
+  private disposeTab(tab: TerminalTab): void {
+    if (tab.webglAddon) {
+      const addon = tab.webglAddon;
+      tab.webglAddon = null;
+      addon.dispose();
+    }
+    tab.terminal.dispose();
+    tab.containerEl.remove();
+  }
+
   dispose(): void {
+    this.disposed = true;
+    this.cancelPendingTabSwitchFrame();
     this.resizeObserver.disconnect();
     this.hookBannerEl?.remove();
     this.hookStatusEl?.remove();
     for (const tab of this.tabs) {
-      tab.webglAddon?.dispose();
-      tab.terminal.dispose();
-      tab.containerEl.remove();
+      this.disposeTab(tab);
     }
     this.tabs = [];
+    this.activeIndex = -1;
   }
 }
