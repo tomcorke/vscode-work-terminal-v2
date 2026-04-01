@@ -339,8 +339,7 @@ export class WorkTerminalPanel {
         this._refreshItems();
         break;
       case "itemSelected":
-        // Selection is tracked in webview; extension can react here
-        // (e.g. open terminals for the selected item)
+        this._handleItemSelected(message.id);
         break;
       case "createItem":
         this._handleCreateItem(message.title, message.column);
@@ -467,6 +466,17 @@ export class WorkTerminalPanel {
     if (!this._workItemService) return;
     await this._workItemService.deleteItem(id);
     await this._refreshItems();
+  }
+
+  private async _handleItemSelected(id: string): Promise<void> {
+    if (!this._workItemService) return;
+    const item = this._workItemService.getItemById(id);
+    if (!item?.path) return;
+    const uri = vscode.Uri.file(item.path);
+    await vscode.window.showTextDocument(uri, {
+      viewColumn: vscode.ViewColumn.Beside,
+      preview: true,
+    });
   }
 
   private async _handleMoveItem(id: string, toColumn: string, index: number): Promise<void> {
