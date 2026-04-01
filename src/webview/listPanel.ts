@@ -256,9 +256,21 @@ export class ListPanel {
     titleEl.textContent = item.title;
     titleRow.appendChild(titleEl);
 
-    // Actions container (session badge goes here)
+    // Actions container (move-to-top button + session badge)
     const actionsEl = document.createElement("div");
     actionsEl.className = "wt-card-actions";
+
+    // Move-to-top button (visible on card hover via CSS)
+    const moveTopBtn = document.createElement("button");
+    moveTopBtn.className = "wt-move-to-top-btn";
+    moveTopBtn.title = "Move to top";
+    moveTopBtn.textContent = "\u2191";
+    moveTopBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.vscode.postMessage({ type: "moveToTop", itemId: item.id });
+    });
+    actionsEl.appendChild(moveTopBtn);
+
     titleRow.appendChild(actionsEl);
 
     card.appendChild(titleRow);
@@ -394,6 +406,13 @@ export class ListPanel {
         },
       });
     }
+
+    menuItems.push({
+      label: "Move to Top",
+      action: () => {
+        this.vscode.postMessage({ type: "moveToTop", itemId: item.id });
+      },
+    });
 
     menuItems.push({ label: "", action: () => {}, separator: true });
 
