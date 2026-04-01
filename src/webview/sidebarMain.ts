@@ -21,6 +21,7 @@ let columns: string[] = [];
 let filterTerm = "";
 let selectedId: string | null = null;
 const collapsedColumns = new Set<string>();
+let hasInitialized = false;
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -148,6 +149,11 @@ window.addEventListener("message", (event: MessageEvent<SidebarMessage>) => {
     case "updateItems":
       items = message.items || [];
       columns = message.columns || [];
+      // Auto-collapse last column on first render
+      if (!hasInitialized && columns.length > 0) {
+        hasInitialized = true;
+        collapsedColumns.add(columns[columns.length - 1]);
+      }
       render();
       break;
   }
