@@ -773,6 +773,13 @@ export class TerminalPanel {
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (event.type !== "keydown") return true;
 
+      // AltGraph combos (e.g. right-Alt on Windows/Linux) produce printable
+      // characters on many keyboard layouts - pass them through as text input.
+      if (event.getModifierState("AltGraph") && event.key.length === 1) {
+        sendInput(event.key);
+        return false;
+      }
+
       if (event.altKey && !event.metaKey && !event.ctrlKey) {
         switch (event.key) {
           case "ArrowLeft":   sendInput("\x1bb");     return false;
@@ -781,6 +788,12 @@ export class TerminalPanel {
           case "b":           sendInput("\x1bb");     return false;
           case "f":           sendInput("\x1bf");     return false;
           case "d":           sendInput("\x1bd");     return false;
+        }
+        // Alt/Option + key producing a printable character (e.g. Alt+3 = #
+        // on UK keyboard) - send as text rather than an escape sequence.
+        if (event.key.length === 1) {
+          sendInput(event.key);
+          return false;
         }
       }
 
