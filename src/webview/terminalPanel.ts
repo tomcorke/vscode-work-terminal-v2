@@ -13,6 +13,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import type { WebviewMessage, TerminalSessionInfo, ButtonProfileInfo, WorkItemDTO } from "./messages";
+import { getProfileIconSymbol } from "./profileIcons";
 
 // ---------------------------------------------------------------------------
 // xterm.js CSS (embedded to avoid CSP issues with external stylesheets)
@@ -84,36 +85,6 @@ function injectXtermCss(): void {
     .xterm .xterm-decoration-top { z-index: 2; position: relative; }
   `;
   document.head.appendChild(style);
-}
-
-// ---------------------------------------------------------------------------
-// Profile icon mapping (profile icon names to codicon names)
-// ---------------------------------------------------------------------------
-
-function mapProfileIcon(icon: string): string {
-  const iconMap: Record<string, string> = {
-    claude: "sparkle",
-    copilot: "copilot",
-    terminal: "terminal",
-    bot: "robot",
-    brain: "symbol-misc",
-    code: "code",
-    rocket: "rocket",
-    zap: "zap",
-    cog: "gear",
-    wrench: "wrench",
-    shield: "shield",
-    globe: "globe",
-    search: "search",
-    lightbulb: "lightbulb",
-    flask: "beaker",
-    book: "book",
-    puzzle: "extensions",
-    bee: "bug",
-    aws: "cloud",
-    skyscanner: "globe",
-  };
-  return iconMap[icon] || "terminal";
 }
 
 // ---------------------------------------------------------------------------
@@ -535,7 +506,8 @@ export class TerminalPanel {
 
       if (profile.icon) {
         const iconSpan = document.createElement("span");
-        iconSpan.className = `codicon codicon-${mapProfileIcon(profile.icon)}`;
+        iconSpan.className = "wt-spawn-profile-icon";
+        iconSpan.textContent = getProfileIconSymbol(profile.icon);
         iconSpan.style.marginRight = "4px";
         if (profile.color) iconSpan.style.color = profile.color;
         btn.appendChild(iconSpan);
