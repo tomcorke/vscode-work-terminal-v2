@@ -263,18 +263,28 @@ export function activate(context: vscode.ExtensionContext) {
               stdio: "pipe",
             });
 
+            let stdout = "";
             let stderr = "";
+            child.stdout?.on("data", (chunk: Buffer) => {
+              stdout += chunk.toString("utf8");
+            });
             child.stderr?.on("data", (chunk: Buffer) => {
               stderr += chunk.toString("utf8");
             });
 
             child.on("error", reject);
-            child.on("exit", (code) => {
+            child.on("exit", (code, signal) => {
               if (code === 0) {
                 resolve();
                 return;
               }
-              reject(new Error(stderr.trim() || `node-pty rebuild failed with exit code ${code}.`));
+
+              const combinedOutput = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n\n");
+              const fallbackReason =
+                signal != null
+                  ? `node-pty rebuild failed due to signal ${signal}.`
+                  : `node-pty rebuild failed with exit code ${code ?? "unknown"}.`;
+              reject(new Error(combinedOutput || fallbackReason));
             });
           }),
         );
