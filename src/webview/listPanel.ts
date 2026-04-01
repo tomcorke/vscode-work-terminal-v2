@@ -47,6 +47,7 @@ export class ListPanel {
   private vscode: WebviewApi;
   private state: ListPanelState;
   private filterDebounce: ReturnType<typeof setTimeout> | null = null;
+  private hasInitialized = false;
 
   constructor(vscode: WebviewApi) {
     this.vscode = vscode;
@@ -77,6 +78,11 @@ export class ListPanel {
   getSessionCounts(): Map<string, SessionInfo> { return this.state.sessionCounts; }
 
   updateItems(items: WorkItemDTO[], columns: string[]): void {
+    // Auto-collapse last column on first render
+    if (!this.hasInitialized && columns.length > 0) {
+      this.hasInitialized = true;
+      this.state.collapsedColumns.add(columns[columns.length - 1]);
+    }
     this.state.items = items;
     this.state.columns = columns;
     this.render();
