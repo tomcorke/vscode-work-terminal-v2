@@ -161,18 +161,19 @@ export class TerminalManager {
     let command: string;
     let args: string[];
 
-    if (sessionType === "shell") {
-      command = options.command || this.getDefaultShell();
+    if (options.command) {
+      // Caller already resolved the command (profile-based launch)
+      command = options.command;
+      args = options.args || [];
+    } else if (sessionType === "shell") {
+      command = this.getDefaultShell();
       args = options.args || [];
     } else {
-      // Agent session - build launch args
-      const settings: Record<string, string | undefined> = {};
+      // Agent session - build launch args using defaults
       const config = vscode.workspace.getConfiguration("workTerminal");
-      settings.claudeCommand = config.get<string>("claudeCommand");
-      settings.claudeExtraArgs = config.get<string>("claudeExtraArgs");
-      settings.copilotCommand = config.get<string>("copilotCommand");
-      settings.copilotExtraArgs = config.get<string>("copilotExtraArgs");
-      settings.additionalAgentContext = config.get<string>("additionalAgentContext");
+      const settings: Record<string, string | undefined> = {
+        additionalAgentContext: config.get<string>("additionalAgentContext"),
+      };
 
       const launch = buildAgentLaunchArgs(
         sessionType,

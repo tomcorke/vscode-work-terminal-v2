@@ -37,6 +37,8 @@ export class AgentProfileManager {
       await this.save();
     }
 
+    await this.migrateGlobalSettings();
+
     this.loaded = true;
     return this.getProfiles();
   }
@@ -147,16 +149,17 @@ export class AgentProfileManager {
     if (profile.command.trim()) {
       return profile.command.trim();
     }
-    const config = vscode.workspace.getConfiguration("workTerminal");
     switch (profile.agentType) {
       case "claude":
-        return config.get<string>("claudeCommand", "claude");
+        return "claude";
       case "copilot":
-        return config.get<string>("copilotCommand", "gh");
+        return "gh";
       case "strands":
-        return config.get<string>("strandsCommand", "strands");
-      case "shell":
+        return "strands";
+      case "shell": {
+        const config = vscode.workspace.getConfiguration("workTerminal");
         return config.get<string>("defaultShell", process.env.SHELL || "/bin/zsh");
+      }
     }
   }
 
@@ -169,22 +172,7 @@ export class AgentProfileManager {
   }
 
   resolveArguments(profile: AgentProfile): string {
-    const profileArgs = profile.arguments.trim();
-    const config = vscode.workspace.getConfiguration("workTerminal");
-    let globalArgs = "";
-    switch (profile.agentType) {
-      case "claude":
-        globalArgs = config.get<string>("claudeExtraArgs", "");
-        break;
-      case "copilot":
-        globalArgs = config.get<string>("copilotExtraArgs", "");
-        break;
-      case "strands":
-        globalArgs = config.get<string>("strandsExtraArgs", "");
-        break;
-    }
-    const parts = [globalArgs.trim(), profileArgs].filter(Boolean);
-    return parts.join(" ");
+    return profile.arguments.trim();
   }
 
   resolveContextPrompt(profile: AgentProfile): string {
@@ -193,6 +181,84 @@ export class AgentProfileManager {
     }
     const config = vscode.workspace.getConfiguration("workTerminal");
     return config.get<string>("additionalAgentContext", "");
+  }
+
+  // ---------------------------------------------------------------------------
+  // One-time migration from deprecated global settings to profiles
+  // ---------------------------------------------------------------------------
+
+  private static MIGRATED_KEY = "agentProfiles.migratedGlobalSettings";
+
+  private async migrateGlobalSettings(): Promise<void> {
+    if (this.globalState.get<boolean>(AgentProfileManager.MIGRATED_KEY)) {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    let migrated = false;
+
+    const claudeCmd = config.get<string>("claudeCommand", "claude");
+    const claudeArgs = config.get<string>("claudeExtraArgs", "");
+    const copilotCmd = config.get<string>("copilotCommand", "gh");
+    const copilotArgs = config.get<string>("copilotExtraArgs", "");
+    const strandsCmd = config.get<string>("strandsCommand", "");
+    const strandsArgs = config.get<string>("strandsExtraArgs", "");
+
+    const hasClaudeOverrides =
+      (claudeCmd && claudeCmd !== "claude") || (claudeArgs && claudeArgs.trim() !== "");
+    const hasCopilotOverrides =
+      (copilotCmd && copilotCmd !== "gh") || (copilotArgs && copilotArgs.trim() !== "");
+    const hasStrandsOverrides =
+      (strandsCmd && strandsCmd.trim() !== "") || (strandsArgs && strandsArgs.trim() !== "");
+
+    if (hasClaudeOverrides) {
+      for (const p of this.profiles) {
+        if (p.agentType === "claude") {
+          if (claudeCmd && claudeCmd !== "claude" && !p.command.trim()) {
+            p.command = claudeCmd;
+          }
+          if (claudeArgs && claudeArgs.trim() && !p.arguments.trim()) {
+            p.arguments = claudeArgs.trim();
+          }
+        }
+      }
+      migrated = true;
+    }
+
+    if (hasCopilotOverrides) {
+      for (const p of this.profiles) {
+        if (p.agentType === "copilot") {
+          if (copilotCmd && copilotCmd !== "gh" && !p.command.trim()) {
+            p.command = copilotCmd;
+          }
+          if (copilotArgs && copilotArgs.trim() && !p.arguments.trim()) {
+            p.arguments = copilotArgs.trim();
+          }
+        }
+      }
+      migrated = true;
+    }
+
+    if (hasStrandsOverrides) {
+      for (const p of this.profiles) {
+        if (p.agentType === "strands") {
+          if (strandsCmd && strandsCmd.trim() && !p.command.trim()) {
+            p.command = strandsCmd.trim();
+          }
+          if (strandsArgs && strandsArgs.trim() && !p.arguments.trim()) {
+            p.arguments = strandsArgs.trim();
+          }
+        }
+      }
+      migrated = true;
+    }
+
+    if (migrated) {
+      await this.save();
+      console.log("[work-terminal] Migrated global agent settings to profiles");
+    }
+
+    await this.globalState.update(AgentProfileManager.MIGRATED_KEY, true);
   }
 
   dispose(): void {
