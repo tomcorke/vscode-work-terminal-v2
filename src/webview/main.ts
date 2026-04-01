@@ -2,6 +2,7 @@ import type { WebviewApi } from "../types/vscode";
 import type { WebviewMessage, ExtensionMessage } from "./messages";
 import { ListPanel } from "./listPanel";
 import { TerminalPanel } from "./terminalPanel";
+import { renderProfileList } from "./profileManager";
 
 const vscode: WebviewApi = acquireVsCodeApi();
 
@@ -48,10 +49,43 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "themeChanged":
       handleThemeChange();
       break;
+    case "profileList":
+      handleProfileList(message);
+      break;
+    case "profileSaved":
+      // Profile saved confirmation - refresh the list via getProfiles
+      vscode.postMessage({ type: "getProfiles" });
+      break;
+    case "profileDeleted":
+      // Profile deleted confirmation - refresh the list via getProfiles
+      vscode.postMessage({ type: "getProfiles" });
+      break;
     default:
       break;
   }
 });
+
+// ---------------------------------------------------------------------------
+// Profile management
+// ---------------------------------------------------------------------------
+
+function handleProfileList(message: Extract<ExtensionMessage, { type: "profileList" }>): void {
+  // Render profiles into a dialog overlay
+  let overlay = document.getElementById("profile-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "profile-overlay";
+    overlay.style.cssText =
+      "position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; " +
+      "justify-content: center; background: rgba(0,0,0,0.4);";
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay!.remove();
+    });
+    document.body.appendChild(overlay);
+  }
+  const html = renderProfileList(message.profiles);
+  overlay.innerHTML = `<div style="background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;">${html}</div>`;
+}
 
 // ---------------------------------------------------------------------------
 // Resizable divider

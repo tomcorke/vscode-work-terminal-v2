@@ -70,20 +70,28 @@ export class WorkTerminalPanel {
     };
     this._terminalManager.onCreated = (sessionId, label, sessionType) => {
       this.postMessage({ type: "terminalCreated", sessionId, label, sessionType });
+      // Notify webview of updated session state for the item
+      this._postSessionStateForTerminal(sessionId);
     };
     this._terminalManager.onClosed = (sessionId) => {
+      // Capture item info before the terminal is removed from the map
+      const closingInfo = this._terminalManager.getSessionInfo(sessionId);
+      const closingItemId = this._getItemIdForSession(sessionId);
       this.postMessage({ type: "terminalClosed", sessionId });
       // Notify session manager of terminal close for recently-closed tracking
-      const info = this._terminalManager.getSessionInfo(sessionId);
-      if (info && this._sessionManager) {
+      if (closingInfo && this._sessionManager) {
         this._sessionManager.onTerminalClosed({
           sessionId,
-          label: info.label,
-          itemId: null,
-          sessionType: info.sessionType,
+          label: closingInfo.label,
+          itemId: closingItemId,
+          sessionType: closingInfo.sessionType,
         }).catch((err) => {
           console.error("[work-terminal] Session close tracking failed:", err);
         });
+      }
+      // Notify webview of updated session state for the item
+      if (closingItemId) {
+        this._postSessionStateForItem(closingItemId);
       }
     };
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
@@ -144,6 +152,10 @@ export class WorkTerminalPanel {
 
   get profileManager(): AgentProfileManager | null {
     return this._profileManager;
+  }
+
+  get isServicesInitialized(): boolean {
+    return this._workItemService !== null;
   }
 
   /**
@@ -215,6 +227,33 @@ export class WorkTerminalPanel {
     if (!this._disposed) {
       this._panel.webview.postMessage(message);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Session state notifications
+  // ---------------------------------------------------------------------------
+
+  private _getItemIdForSession(sessionId: string): string | null {
+    const all = this._terminalManager.getAllSessionInfo();
+    const match = all.find((s) => s.sessionId === sessionId);
+    return match?.itemId ?? null;
+  }
+
+  private _postSessionStateForTerminal(sessionId: string): void {
+    const itemId = this._getItemIdForSession(sessionId);
+    if (itemId) {
+      this._postSessionStateForItem(itemId);
+    }
+  }
+
+  private _postSessionStateForItem(itemId: string): void {
+    const sessionIds = this._terminalManager.getSessionsForItem(itemId);
+    const sessions = sessionIds.map((sid) => {
+      const info = this._terminalManager.getSessionInfo(sid);
+      const kind: "shell" | "agent" = info?.sessionType === "shell" ? "shell" : "agent";
+      return { id: sid, label: info?.label ?? "", kind };
+    });
+    this.postMessage({ type: "sessionStateChanged", itemId, sessions });
   }
 
   // ---------------------------------------------------------------------------

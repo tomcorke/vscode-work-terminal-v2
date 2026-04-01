@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { WorkTerminalPanel } from "./panels/WorkTerminalPanel";
+import { TaskAgentAdapter } from "./adapters/task-agent/index";
 
 class WorkTerminalSidebarProvider implements vscode.WebviewViewProvider {
   constructor(private readonly _extensionUri: vscode.Uri) {}
@@ -58,9 +59,15 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  const adapter = new TaskAgentAdapter();
+
   context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.openPanel", async () => {
       const panel = WorkTerminalPanel.createOrShow(context.extensionUri);
+      // Initialize services (adapter, parser, mover, file watcher) if not already done
+      if (!panel.isServicesInitialized) {
+        await panel.initServices(adapter, context.globalState);
+      }
       // Initialize session manager if not already done
       if (!panel.sessionManager) {
         await panel.initSessionManager(context);
