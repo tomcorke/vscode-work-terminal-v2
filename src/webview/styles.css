@@ -1,0 +1,545 @@
+/* =============================================================================
+   Work Terminal - VS Code Webview CSS
+   All classes prefixed with wt- for namespace isolation.
+   Maps Obsidian CSS variables to VS Code theme variables.
+   ============================================================================= */
+
+/* =============================================================================
+   Layout: 2-column split (list | terminals)
+   ============================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-background);
+}
+
+.wt-main-view {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wt-left-panel {
+  width: 280px;
+  min-width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-sideBar-background);
+}
+
+.wt-right-panel {
+  flex: 1;
+  min-width: 300px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-editor-background);
+}
+
+.wt-divider {
+  width: 5px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  background: var(--vscode-panel-border);
+  transition: background 0.15s;
+}
+
+.wt-divider:hover,
+.wt-divider-active {
+  background: var(--vscode-focusBorder);
+  opacity: 0.3;
+}
+
+/* =============================================================================
+   Toolbar
+   ============================================================================= */
+
+.wt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.wt-toolbar-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-focusBorder));
+  border-radius: 2px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wt-toolbar-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+/* =============================================================================
+   Filter input
+   ============================================================================= */
+
+.wt-filter-container {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.wt-filter-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-filter-input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.wt-filter-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* =============================================================================
+   List panel & sections
+   ============================================================================= */
+
+.wt-list-panel {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.wt-section {
+  margin-bottom: 2px;
+}
+
+.wt-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+}
+
+.wt-section-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* Section header colours per state */
+.wt-section-header-priority { border-bottom-color: #e53e3e; }
+.wt-section-header-active { border-bottom-color: var(--vscode-focusBorder); }
+.wt-section-header-todo { border-bottom-color: var(--vscode-descriptionForeground); }
+.wt-section-header-done { border-bottom-color: #38a169; }
+
+.wt-collapse-icon {
+  font-size: 8px;
+  width: 10px;
+  text-align: center;
+}
+
+.wt-section-cards {
+  padding: 0 4px 4px;
+}
+
+/* =============================================================================
+   Cards
+   ============================================================================= */
+
+.wt-card-wrapper {
+  --wt-card-padding-x: 10px;
+  --wt-card-padding-y: 8px;
+  position: relative;
+  padding: var(--wt-card-padding-y) var(--wt-card-padding-x);
+  margin: 3px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  background: var(--vscode-sideBar-background);
+  border-left: 3px solid var(--wt-task-color, transparent);
+}
+
+.wt-card-wrapper:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.wt-card-selected {
+  background: var(--vscode-list-activeSelectionBackground) !important;
+  color: var(--vscode-list-activeSelectionForeground);
+  border-left-color: var(--vscode-focusBorder);
+}
+
+.wt-card-dragging {
+  opacity: 0.4;
+}
+
+/* Card title row */
+.wt-card-title-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Card actions: session badge + move-to-top, floating top-right */
+.wt-card-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Card title */
+.wt-card-title {
+  font-weight: 500;
+  padding-right: 24px;
+  margin-bottom: 4px;
+}
+
+/* Card meta row */
+.wt-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Source badge */
+.wt-card-source {
+  display: inline-block;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   Drop indicator
+   ============================================================================= */
+
+.wt-drop-indicator {
+  height: 2px;
+  background: var(--vscode-focusBorder);
+  border-radius: 1px;
+  margin: 1px 4px;
+}
+
+/* =============================================================================
+   Session badges
+   ============================================================================= */
+
+.wt-session-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.wt-badge-agent { background: #C15F3C; }
+.wt-badge-shell { background: #3b82f6; }
+.wt-badge-mixed { background: #8b5cf6; }
+
+/* =============================================================================
+   Agent state indicators on cards
+   ============================================================================= */
+
+.wt-agent-active .wt-session-badge {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.wt-agent-active .wt-session-badge::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 12px;
+  background: conic-gradient(#38a169 0deg, #38a169 90deg, transparent 90deg, transparent 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  animation: wt-arc-spin 1.2s linear infinite;
+  z-index: -1;
+}
+
+@keyframes wt-arc-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   Task title heading (right panel)
+   ============================================================================= */
+
+.wt-task-title {
+  display: none;
+  padding: 8px 12px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.wt-task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wt-task-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   Tab bar
+   ============================================================================= */
+
+.wt-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  min-height: 34px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.wt-tabs-container {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  overflow: hidden;
+  gap: 4px;
+  padding-left: 6px;
+}
+
+.wt-tab-buttons {
+  display: flex;
+  gap: 4px;
+  padding: 1px 4px 0;
+  align-items: flex-end;
+  align-self: flex-end;
+  flex-shrink: 0;
+}
+
+.wt-tab {
+  --wt-tab-fill: var(--vscode-tab-inactiveBackground);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  max-width: 200px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--wt-tab-fill);
+  border: 1px solid var(--vscode-tab-border, var(--vscode-panel-border));
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  color: var(--vscode-tab-inactiveForeground);
+}
+
+.wt-tab:hover {
+  --wt-tab-fill: var(--vscode-tab-hoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.wt-tab-active {
+  --wt-tab-fill: var(--vscode-tab-activeBackground);
+  color: var(--vscode-tab-activeForeground);
+  border-bottom-color: var(--vscode-focusBorder);
+}
+
+.wt-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.wt-tab-close {
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.wt-tab-close:hover {
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-tab-dragging {
+  opacity: 0.4;
+}
+
+.wt-tab-drop-target {
+  border-bottom-color: var(--vscode-focusBorder) !important;
+}
+
+/* =============================================================================
+   Spawn buttons
+   ============================================================================= */
+
+.wt-spawn-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.wt-spawn-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-editor-foreground);
+}
+
+/* =============================================================================
+   Prompt box
+   ============================================================================= */
+
+.wt-prompt-box {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.wt-prompt-toggle {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px dashed var(--vscode-focusBorder);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wt-prompt-toggle:hover {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-prompt-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  resize: vertical;
+  min-height: 36px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-prompt-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* =============================================================================
+   Terminal wrapper
+   ============================================================================= */
+
+.wt-terminal-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.wt-terminal-instance {
+  width: 100% !important;
+  height: 100%;
+  overflow: visible;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 6px 0 0 6px;
+  box-sizing: border-box;
+}
+
+/* Hidden terminals: visibility hidden preserves render state */
+.wt-terminal-instance.hidden {
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* xterm overflow fixes */
+.wt-terminal-instance .xterm {
+  width: 100% !important;
+  height: 100%;
+}
+
+.wt-terminal-instance .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* =============================================================================
+   Placeholder / empty state
+   ============================================================================= */
+
+.wt-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}

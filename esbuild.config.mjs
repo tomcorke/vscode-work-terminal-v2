@@ -1,7 +1,24 @@
 import * as esbuild from "esbuild";
+import * as fs from "fs";
+import * as path from "path";
 
 const isWatch = process.argv.includes("--watch");
 const isProduction = process.argv.includes("--production");
+
+/** Plugin that copies static assets (CSS) to dist. */
+const copyAssetsPlugin = {
+  name: "copy-assets",
+  setup(build) {
+    build.onEnd(() => {
+      const distDir = "dist";
+      if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
+      fs.copyFileSync(
+        path.join("src", "webview", "styles.css"),
+        path.join(distDir, "styles.css"),
+      );
+    });
+  },
+};
 
 /** @type {import('esbuild').BuildOptions} */
 const extensionConfig = {
@@ -27,6 +44,7 @@ const webviewConfig = {
   sourcemap: !isProduction,
   minify: isProduction,
   target: "es2020",
+  plugins: [copyAssetsPlugin],
 };
 
 async function main() {
