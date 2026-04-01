@@ -83,6 +83,22 @@ export class RecentlyClosedStore {
     return result;
   }
 
+  /** Get the set of item IDs that have at least one resumable closed session. */
+  getResumableItemIds(): Set<string> {
+    this.prune();
+    const ids = new Set<string>();
+    for (const entry of this.entries) {
+      ids.add(entry.itemId);
+    }
+    return ids;
+  }
+
+  /** Get the most recent closed session for a specific item, or null. */
+  getForItem(itemId: string): ClosedSessionEntry | null {
+    this.prune();
+    return this.entries.find((e) => e.itemId === itemId) ?? null;
+  }
+
   /** Remove expired entries and enforce max size. */
   private prune(): void {
     const cutoff = Date.now() - EXPIRY_MS;

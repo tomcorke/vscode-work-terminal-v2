@@ -31,6 +31,8 @@ interface ListPanelState {
   placeholders: Map<string, PlaceholderCard>;
   /** IDs that should play success animation on next render */
   pendingSuccessIds: Set<string>;
+  /** Item IDs that have resumable closed sessions */
+  resumableItemIds: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,7 @@ export class ListPanel {
       ingestingIds: new Set(),
       placeholders: new Map(),
       pendingSuccessIds: new Set(),
+      resumableItemIds: new Set(),
     };
   }
 
@@ -90,6 +93,15 @@ export class ListPanel {
       info.agentState = agentState || undefined;
     }
     this.updateAgentIndicator(itemId);
+  }
+
+  updateResumeItemIds(itemIds: string[]): void {
+    const newSet = new Set(itemIds);
+    const allIds = new Set([...this.state.resumableItemIds, ...newSet]);
+    this.state.resumableItemIds = newSet;
+    for (const id of allIds) {
+      this.updateResumeBadge(id);
+    }
   }
 
   setIngesting(itemId: string): void {
@@ -357,6 +369,9 @@ export class ListPanel {
     // Session badge
     this.renderSessionBadge(actionsEl, item.id);
 
+    // Resume badge (shown when item has closed resumable sessions but no active ones)
+    this.renderResumeBadge(actionsEl, item.id);
+
     // Ingesting badge
     if (this.state.ingestingIds.has(item.id)) {
       this.addIngestingBadge(card);
@@ -515,6 +530,41 @@ export class ListPanel {
     card.classList.toggle("wt-agent-active", info?.agentState === "active");
     card.classList.toggle("wt-agent-waiting", info?.agentState === "waiting");
     card.classList.toggle("wt-agent-idle", info?.agentState === "idle");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resume badges
+  // ---------------------------------------------------------------------------
+
+  private renderResumeBadge(container: HTMLElement, itemId: string): void {
+    if (!this.state.resumableItemIds.has(itemId)) return;
+    // Don't show resume badge if the item already has active sessions
+    if (this.state.sessionCounts.has(itemId)) return;
+
+    const badge = document.createElement("span");
+    badge.className = "wt-resume-badge";
+    badge.dataset.resumeBadge = itemId;
+    badge.textContent = "resume";
+    badge.title = "Restore closed session";
+    badge.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.vscode.postMessage({ type: "resumeItem", itemId });
+    });
+    container.appendChild(badge);
+  }
+
+  private updateResumeBadge(itemId: string): void {
+    const card = this.findCardByItemId(itemId);
+    if (!card) return;
+
+    // Remove existing resume badge
+    const existing = card.querySelector(`[data-resume-badge="${CSS.escape(itemId)}"]`);
+    if (existing) existing.remove();
+
+    const actionsEl = card.querySelector(".wt-card-actions");
+    if (actionsEl) {
+      this.renderResumeBadge(actionsEl as HTMLElement, itemId);
+    }
   }
 
   // ---------------------------------------------------------------------------

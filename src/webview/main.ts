@@ -84,6 +84,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "buttonProfiles":
       terminalPanel?.updateButtonProfiles(message.profiles);
       break;
+    case "resumeItemIds":
+      listPanel?.updateResumeItemIds(message.itemIds);
+      break;
     case "focusFilter":
       showFilter();
       break;

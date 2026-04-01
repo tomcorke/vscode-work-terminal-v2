@@ -102,6 +102,8 @@ export class WorkTerminalPanel {
       if (closingItemId) {
         this._postSessionStateForItem(closingItemId);
       }
+      // Update resume badge state after session enters recently-closed store
+      this._postResumeItemIds();
     };
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
       this.postMessage({ type: "agentStateChanged", sessionId, state });
@@ -341,6 +343,12 @@ export class WorkTerminalPanel {
     this.postMessage({ type: "sessionStateChanged", itemId, sessions });
   }
 
+  private _postResumeItemIds(): void {
+    if (!this._sessionManager) return;
+    const ids = this._sessionManager.getResumableItemIds();
+    this.postMessage({ type: "resumeItemIds", itemIds: [...ids] });
+  }
+
   // ---------------------------------------------------------------------------
   // Button profile sync
   // ---------------------------------------------------------------------------
@@ -429,6 +437,7 @@ export class WorkTerminalPanel {
       case "ready":
         this._refreshItems();
         this._sendButtonProfiles();
+        this._postResumeItemIds();
         break;
       case "itemSelected":
         this._handleItemSelected(message.id);
@@ -525,6 +534,9 @@ export class WorkTerminalPanel {
         break;
       case "requestLaunchModal":
         this.showLaunchModal();
+        break;
+      case "resumeItem":
+        this._handleResumeItem(message.itemId);
         break;
       default:
         break;
@@ -777,6 +789,34 @@ export class WorkTerminalPanel {
         args: entry.commandArgs,
       });
     }
+  }
+
+  private _handleResumeItem(itemId: string): void {
+    if (!this._sessionManager) return;
+    const entry = this._sessionManager.getClosedEntryForItem(itemId);
+    if (!entry) return;
+
+    if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
+      this._terminalManager.createTerminal({
+        sessionType: entry.sessionType,
+        itemId: entry.itemId,
+        label: entry.label,
+        cwd: entry.cwd,
+        resumeSessionId: entry.claudeSessionId,
+      });
+    } else {
+      this._terminalManager.createTerminal({
+        sessionType: entry.sessionType,
+        itemId: entry.itemId,
+        label: entry.label,
+        cwd: entry.cwd,
+        command: entry.command,
+        args: entry.commandArgs,
+      });
+    }
+
+    // After resuming, update the resume badges (entry may still be in store)
+    this._postResumeItemIds();
   }
 
   // ---------------------------------------------------------------------------
