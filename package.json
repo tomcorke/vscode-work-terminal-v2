@@ -99,6 +99,12 @@
         "icon": "$(info)"
       },
       {
+        "command": "workTerminal.resetTour",
+        "title": "Reset Guided Tour",
+        "category": "Work Terminal",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "workTerminal.copyDiagnostics",
         "title": "Copy Session Diagnostics",
         "category": "Work Terminal"
