@@ -733,6 +733,8 @@ export class TerminalPanel {
 
     const menu = document.createElement("div");
     menu.className = "wt-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.tabIndex = -1;
     menu.style.cssText =
       "position: fixed; z-index: 1000; " +
       "background: var(--vscode-menu-background); color: var(--vscode-menu-foreground); " +
@@ -741,25 +743,48 @@ export class TerminalPanel {
       "box-shadow: 0 2px 8px rgba(0,0,0,0.3);";
 
     const menuItemStyle =
-      "padding: 4px 16px; cursor: pointer; font-size: 12px; white-space: nowrap;";
+      "display: block; width: 100%; padding: 4px 16px; cursor: pointer; font-size: 12px; " +
+      "white-space: nowrap; text-align: left; border: none; background: transparent; color: inherit;";
+
+    const dismissMenu = () => {
+      menu.remove();
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+      anchorEl.focus();
+    };
+
+    const menuItems: HTMLButtonElement[] = [];
+
+    const focusItem = (index: number) => {
+      if (menuItems.length === 0) {
+        return;
+      }
+
+      const targetIndex = (index + menuItems.length) % menuItems.length;
+      menuItems[targetIndex].focus();
+    };
 
     const addItem = (label: string, action: () => void) => {
-      const el = document.createElement("div");
+      const el = document.createElement("button");
+      el.type = "button";
+      el.setAttribute("role", "menuitem");
       el.textContent = label;
       el.style.cssText = menuItemStyle;
       el.addEventListener("mouseenter", () => {
         el.style.background = "var(--vscode-menu-selectionBackground)";
         el.style.color = "var(--vscode-menu-selectionForeground)";
+        el.focus();
       });
       el.addEventListener("mouseleave", () => {
         el.style.background = "";
         el.style.color = "";
       });
       el.addEventListener("click", () => {
-        menu.remove();
+        dismissMenu();
         action();
       });
       menu.appendChild(el);
+      menuItems.push(el);
     };
 
     addItem("Launch Profile", () => {
@@ -795,11 +820,42 @@ export class TerminalPanel {
 
     const dismiss = (e: MouseEvent) => {
       if (!menu.contains(e.target as Node) && e.target !== anchorEl) {
-        menu.remove();
-        document.removeEventListener("mousedown", dismiss);
+        dismissMenu();
       }
     };
-    requestAnimationFrame(() => { document.addEventListener("mousedown", dismiss); });
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const currentIndex = menuItems.findIndex((item) => item === document.activeElement);
+
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          dismissMenu();
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          focusItem(currentIndex + 1);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          focusItem(currentIndex - 1);
+          break;
+        case "Home":
+          e.preventDefault();
+          focusItem(0);
+          break;
+        case "End":
+          e.preventDefault();
+          focusItem(menuItems.length - 1);
+          break;
+      }
+    };
+
+    requestAnimationFrame(() => {
+      document.addEventListener("mousedown", dismiss);
+      document.addEventListener("keydown", onKeyDown);
+      focusItem(0);
+    });
   }
 
   private showTabContextMenu(index: number, x: number, y: number): void {
