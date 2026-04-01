@@ -97,6 +97,11 @@
         "title": "Start Guided Tour",
         "category": "Work Terminal",
         "icon": "$(info)"
+      },
+      {
+        "command": "workTerminal.copyDiagnostics",
+        "title": "Copy Session Diagnostics",
+        "category": "Work Terminal"
       }
     ],
     "keybindings": [

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { WorkTerminalPanel } from "./panels/WorkTerminalPanel";
 import { SidebarProvider } from "./panels/SidebarProvider";
 import { TaskAgentAdapter } from "./adapters/task-agent/index";
+import { checkHookStatus, installHooks, removeHooks } from "./agents/ClaudeHookManager";
 
 export function activate(context: vscode.ExtensionContext) {
   const sidebarProvider = new SidebarProvider(context.extensionUri);
@@ -182,6 +183,19 @@ export function activate(context: vscode.ExtensionContext) {
         "tomcorke.vscode-work-terminal-v2#workTerminal.gettingStarted",
         false,
       );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.copyDiagnostics", async () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      const text = await panel.collectDiagnostics();
+      await vscode.env.clipboard.writeText(text);
+      vscode.window.showInformationMessage("Session diagnostics copied to clipboard.");
     })
   );
 }

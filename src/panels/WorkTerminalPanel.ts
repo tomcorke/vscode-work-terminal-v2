@@ -17,7 +17,7 @@ import type { AgentProfile } from "../core/agents/types";
 import { showLaunchModal, type LaunchModalResult } from "../agents/AgentLaunchModal";
 import { parseExtraArgs } from "../terminal/AgentLauncher";
 import { HookBannerService } from "../agents/HookBannerService";
-import { installHooks } from "../agents/ClaudeHookManager";
+import { installHooks, removeHooks, checkHookStatus } from "../agents/ClaudeHookManager";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -456,6 +456,7 @@ export class WorkTerminalPanel {
         this._refreshItems();
         this._sendButtonProfiles();
         this._postResumeItemIds();
+        this._refreshHookState();
         const cfg = vscode.workspace.getConfiguration("workTerminal");
         this._hookBannerService.start(cfg.get<boolean>("acceptNoResumeHooks", false));
         if (cfg.get<boolean>("exposeDebugApi", false)) {
@@ -564,6 +565,9 @@ export class WorkTerminalPanel {
         break;
       case "installHooks":
         this._handleInstallHooks();
+        break;
+      case "removeHooks":
+        this.handleRemoveHooks();
         break;
       case "dismissHookBanner":
         this._hookBannerService.dismiss();
@@ -1057,21 +1061,178 @@ export class WorkTerminalPanel {
   }
 
   // ---------------------------------------------------------------------------
-  // Hook installation
+  // Hook installation / removal
   // ---------------------------------------------------------------------------
 
-  private async _handleInstallHooks(): Promise<void> {
+  private _getHookCwd(): string {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const cwd = workspaceFolder?.uri.fsPath ?? require("os").homedir();
+    return workspaceFolder?.uri.fsPath ?? require("os").homedir();
+  }
 
+  private async _handleInstallHooks(): Promise<void> {
+    const cwd = this._getHookCwd();
     try {
       await installHooks(cwd);
       vscode.window.showInformationMessage("Claude hooks installed successfully.");
+      this._refreshHookState();
     } catch (err) {
       vscode.window.showErrorMessage(
         `Failed to install hooks: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  async handleRemoveHooks(): Promise<void> {
+    const cwd = this._getHookCwd();
+    try {
+      await removeHooks(cwd);
+      vscode.window.showInformationMessage("Claude hooks removed successfully.");
+      this._refreshHookState();
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to remove hooks: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /** Push current hook status to the webview and re-check the banner. */
+  private _refreshHookState(): void {
+    const cwd = this._getHookCwd();
+    const status = checkHookStatus(cwd);
+    const installed = status.scriptExists && status.hooksConfigured;
+    this.postMessage({ type: "hookStatusChanged", installed });
+    this._hookBannerService.recheckNow();
+  }
+
+  /** Get current hook status (used by commands). */
+  getHookStatus(): { scriptExists: boolean; hooksConfigured: boolean } {
+    return checkHookStatus(this._getHookCwd());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Diagnostics
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Collect a snapshot of extension state for debugging and support.
+   */
+  async collectDiagnostics(): Promise<string> {
+    const lines: string[] = [];
+    const ext = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
+    const version = ext?.packageJSON?.version ?? "unknown";
+    lines.push(`# Work Terminal Diagnostics`);
+    lines.push(`Version: ${version}`);
+    lines.push(`Timestamp: ${new Date().toISOString()}`);
+    lines.push("");
+
+    // Active sessions
+    const allSessions = this._terminalManager.getAllSessionInfo();
+    lines.push(`## Active Sessions (${allSessions.length})`);
+    if (allSessions.length === 0) {
+      lines.push("(none)");
+    } else {
+      for (const s of allSessions) {
+        const state = s.itemId
+          ? this._terminalManager.getAgentState(s.itemId)
+          : "n/a";
+        lines.push(
+          `- [${s.sessionType}] "${s.label}" (session: ${s.sessionId}, item: ${s.itemId ?? "unattached"}, agent state: ${state})`,
+        );
+      }
+    }
+    lines.push("");
+
+    // Work items
+    if (this._workItemService) {
+      const items = this._workItemService.getItems();
+      const grouped = this._workItemService.getGrouped();
+      lines.push(`## Work Items (${items.length})`);
+      for (const [column, columnItems] of Object.entries(grouped)) {
+        lines.push(`### ${column} (${columnItems.length})`);
+        for (const item of columnItems) {
+          const sessionCount = this._terminalManager.getSessionsForItem(item.id).length;
+          lines.push(`- "${item.title}" (id: ${item.id}, terminals: ${sessionCount})`);
+        }
+      }
+    } else {
+      lines.push("## Work Items");
+      lines.push("(service not initialized)");
+    }
+    lines.push("");
+
+    // Recently closed
+    if (this._sessionManager) {
+      const recentlyClosed = this._sessionManager.getRecentlyClosed(undefined, 10);
+      lines.push(`## Recently Closed (${recentlyClosed.length})`);
+      if (recentlyClosed.length === 0) {
+        lines.push("(none)");
+      } else {
+        for (const entry of recentlyClosed) {
+          const age = Math.round((Date.now() - entry.closedAt) / 1000);
+          lines.push(
+            `- [${entry.sessionType}] "${entry.label}" (item: ${entry.itemId}, closed: ${age}s ago, recovery: ${entry.recoveryMode})`,
+          );
+        }
+      }
+    }
+    lines.push("");
+
+    // Agent profiles
+    if (this._profileManager) {
+      const profiles = this._profileManager.getProfiles();
+      lines.push(`## Agent Profiles (${profiles.length})`);
+      for (const p of profiles) {
+        lines.push(`- "${p.name}" (type: ${p.agentType}, id: ${p.id})`);
+      }
+    }
+    lines.push("");
+
+    // Diagnostics / problem detection
+    lines.push("## Derived Diagnostics");
+    const problems: string[] = [];
+
+    // Sessions with no item attached
+    const unattached = allSessions.filter((s) => !s.itemId);
+    if (unattached.length > 0) {
+      problems.push(`${unattached.length} session(s) with no work item attached`);
+    }
+
+    // Items with active sessions but in non-active columns
+    if (this._workItemService) {
+      const grouped = this._workItemService.getGrouped();
+      for (const [column, columnItems] of Object.entries(grouped)) {
+        if (column === "active") continue;
+        for (const item of columnItems) {
+          const sessions = this._terminalManager.getSessionsForItem(item.id);
+          if (sessions.length > 0) {
+            problems.push(
+              `Item "${item.title}" in "${column}" has ${sessions.length} active terminal(s)`,
+            );
+          }
+        }
+      }
+    }
+
+    // Orphaned session trackers
+    const orphanedTrackers: string[] = [];
+    for (const [sessionId] of this._sessionTrackers) {
+      if (!this._terminalManager.getSessionInfo(sessionId)) {
+        orphanedTrackers.push(sessionId);
+      }
+    }
+    if (orphanedTrackers.length > 0) {
+      problems.push(`${orphanedTrackers.length} orphaned session tracker(s)`);
+    }
+
+    if (problems.length === 0) {
+      lines.push("No problems detected.");
+    } else {
+      for (const p of problems) {
+        lines.push(`- ${p}`);
+      }
+    }
+
+    return lines.join("\n");
   }
 
   // ---------------------------------------------------------------------------
