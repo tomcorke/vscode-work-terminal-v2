@@ -144,6 +144,8 @@ const STATE_COLORS: Record<string, string> = {
   inactive: "transparent",
 };
 
+const TAB_OVERFLOW_BUFFER_PX = 20;
+
 // ---------------------------------------------------------------------------
 // TerminalPanel
 // ---------------------------------------------------------------------------
@@ -155,6 +157,7 @@ export class TerminalPanel {
   private disposed = false;
   private postMessage: (msg: WebviewMessage) => void;
   private selectedItemId: string | null = null;
+  private tabBarEl: HTMLElement;
   private tabsContainerEl: HTMLElement;
   private tabButtonsEl: HTMLElement;
   private terminalWrapperEl: HTMLElement;
@@ -162,6 +165,8 @@ export class TerminalPanel {
   private taskTitleEl: HTMLElement;
   private taskTitleTextEl: HTMLElement;
   private resizeObserver: ResizeObserver;
+  private tabBarResizeObserver: ResizeObserver | null = null;
+  private tabBarOverflowFrame: number | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
@@ -171,6 +176,7 @@ export class TerminalPanel {
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
 
+    this.tabBarEl = document.getElementById("tab-bar")!;
     this.tabsContainerEl = document.getElementById("tabs-container")!;
     this.tabButtonsEl = document.getElementById("tab-buttons")!;
     this.terminalWrapperEl = document.getElementById("terminal-wrapper")!;
@@ -418,6 +424,7 @@ export class TerminalPanel {
       placeholderEl.className = "wt-tab wt-tab-placeholder";
       placeholderEl.textContent = "No sessions yet";
       this.tabsContainerEl.appendChild(placeholderEl);
+      this.setupTabBarOverflowDetection();
       return;
     }
 
@@ -467,6 +474,8 @@ export class TerminalPanel {
 
       this.tabsContainerEl.appendChild(tabEl);
     }
+
+    this.setupTabBarOverflowDetection();
   }
 
   // -------------------------------------------------------------------------
@@ -557,6 +566,57 @@ export class TerminalPanel {
       });
     });
     this.tabButtonsEl.appendChild(launchBtn);
+
+    this.setupTabBarOverflowDetection();
+  }
+
+  private setupTabBarOverflowDetection(): void {
+    if (!this.tabBarResizeObserver) {
+      this.tabBarResizeObserver = new ResizeObserver(() => {
+        this.scheduleTabBarOverflowCheck();
+      });
+      this.tabBarResizeObserver.observe(this.tabsContainerEl);
+      this.tabBarResizeObserver.observe(this.tabButtonsEl);
+    }
+
+    this.scheduleTabBarOverflowCheck();
+  }
+
+  private scheduleTabBarOverflowCheck(): void {
+    if (this.tabBarOverflowFrame !== null) {
+      return;
+    }
+
+    this.tabBarOverflowFrame = requestAnimationFrame(() => {
+      this.tabBarOverflowFrame = null;
+      this.checkTabBarOverflow();
+    });
+  }
+
+  private checkTabBarOverflow(): void {
+    const tabEls = this.tabsContainerEl.querySelectorAll(".wt-tab");
+    if (tabEls.length === 0) {
+      this.tabBarEl.classList.remove("wt-tab-bar-expanded");
+      return;
+    }
+
+    const wasExpanded = this.tabBarEl.classList.contains("wt-tab-bar-expanded");
+    if (wasExpanded) {
+      this.tabBarEl.classList.remove("wt-tab-bar-expanded");
+    }
+
+    const tabsScrollableWidth = this.tabsContainerEl.scrollWidth;
+    const tabsVisibleWidth = this.tabsContainerEl.clientWidth;
+    const shouldExpand = tabsScrollableWidth > tabsVisibleWidth - TAB_OVERFLOW_BUFFER_PX;
+
+    if (shouldExpand === wasExpanded) {
+      if (wasExpanded) {
+        this.tabBarEl.classList.add("wt-tab-bar-expanded");
+      }
+      return;
+    }
+
+    this.tabBarEl.classList.toggle("wt-tab-bar-expanded", shouldExpand);
   }
 
   private updateEmptyState(): void {
@@ -1161,6 +1221,11 @@ export class TerminalPanel {
     this.disposed = true;
     this.cancelPendingTabSwitchFrame();
     this.resizeObserver.disconnect();
+    this.tabBarResizeObserver?.disconnect();
+    if (this.tabBarOverflowFrame !== null) {
+      cancelAnimationFrame(this.tabBarOverflowFrame);
+      this.tabBarOverflowFrame = null;
+    }
     this.hookBannerEl?.remove();
     this.hookStatusEl?.remove();
     for (const tab of this.tabs) {

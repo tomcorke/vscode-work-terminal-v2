@@ -715,6 +715,20 @@ a.wt-card-source--jira:hover {
   flex-shrink: 0;
 }
 
+.wt-tab-bar-expanded {
+  flex-direction: column-reverse;
+}
+
+.wt-tab-bar-expanded .wt-tabs-container {
+  align-self: flex-start;
+}
+
+.wt-tab-bar-expanded .wt-tab-buttons {
+  align-self: flex-end;
+  padding: 4px 6px 2px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
 .wt-tab {
   --wt-tab-fill: var(--vscode-tab-inactiveBackground);
   display: flex;
