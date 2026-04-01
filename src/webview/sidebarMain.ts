@@ -29,7 +29,12 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       break;
     case "agentStateChanged":
       if (listPanel && message.itemId) {
-        listPanel.setAgentState(message.itemId, message.state as "active" | "idle" | "waiting" | null, message.idleSince);
+        const state = message.state;
+        let agentState: "active" | "idle" | "waiting" | null = null;
+        if (state === "active" || state === "idle" || state === "waiting" || state === null) {
+          agentState = state;
+        }
+        listPanel.setAgentState(message.itemId, agentState, message.idleSince);
       }
       break;
     case "setIngesting":
