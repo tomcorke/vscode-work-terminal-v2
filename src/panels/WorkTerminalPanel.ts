@@ -276,7 +276,7 @@ export class WorkTerminalPanel {
 
   reveal(): void {
     if (!this._disposed) {
-      this._panel.reveal();
+      this._panel.reveal(vscode.ViewColumn.One);
     }
   }
 
