@@ -2,9 +2,13 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import type { WebviewMessage, ExtensionMessage } from "../webview/messages";
+import { WorkItemService } from "../services/WorkItemService";
+import { FileWatcher } from "../services/FileWatcher";
+import type { AdapterBundle } from "../core/interfaces";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
+ * Wires up FileWatcher and WorkItemService to drive the list panel.
  */
 export class WorkTerminalPanel {
   public static current: WorkTerminalPanel | undefined;
@@ -12,6 +16,10 @@ export class WorkTerminalPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposed = false;
+
+  private _workItemService: WorkItemService | null = null;
+  private _fileWatcher: FileWatcher | null = null;
+  private _adapter: AdapterBundle | null = null;
 
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
@@ -29,6 +37,7 @@ export class WorkTerminalPanel {
 
     this._panel.onDidDispose(() => {
       this._disposed = true;
+      this._fileWatcher?.dispose();
       WorkTerminalPanel.current = undefined;
     });
 
@@ -52,6 +61,48 @@ export class WorkTerminalPanel {
     return instance;
   }
 
+  /**
+   * Initialize the work item service and file watcher with the given adapter.
+   */
+  async initServices(
+    adapter: AdapterBundle,
+    globalState: vscode.Memento,
+  ): Promise<void> {
+    this._adapter = adapter;
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
+
+    // Resolve base path against workspace
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const resolvedBase = workspaceFolder
+      ? path.join(workspaceFolder.uri.fsPath, basePath)
+      : basePath;
+
+    const settings: Record<string, unknown> = {
+      "adapter.taskBasePath": basePath,
+    };
+
+    if (adapter.onLoad) {
+      await adapter.onLoad(settings);
+    }
+
+    this._workItemService = new WorkItemService(
+      adapter,
+      resolvedBase,
+      globalState,
+      settings,
+    );
+
+    this._fileWatcher = new FileWatcher(
+      resolvedBase,
+      (p: string) => this._workItemService?.isItemFile(p) ?? false,
+      () => this._refreshItems(),
+    );
+
+    // Initial load
+    await this._refreshItems();
+  }
+
   reveal(): void {
     if (!this._disposed) {
       this._panel.reveal();
@@ -59,6 +110,7 @@ export class WorkTerminalPanel {
   }
 
   dispose(): void {
+    this._fileWatcher?.dispose();
     this._panel.dispose();
   }
 
@@ -72,22 +124,46 @@ export class WorkTerminalPanel {
   }
 
   // ---------------------------------------------------------------------------
+  // Item refresh
+  // ---------------------------------------------------------------------------
+
+  private async _refreshItems(): Promise<void> {
+    if (!this._workItemService) return;
+
+    await this._workItemService.loadAll();
+    const items = this._workItemService.toDTOs();
+    const columns = this._workItemService.getColumns();
+
+    this.postMessage({ type: "updateItems", items, columns });
+  }
+
+  // ---------------------------------------------------------------------------
   // Message handling
   // ---------------------------------------------------------------------------
 
   private _handleMessage(message: WebviewMessage): void {
     switch (message.type) {
       case "ready":
-        // Webview is initialized - send initial data
+        this._refreshItems();
         break;
       case "itemSelected":
-        // Will be implemented in list panel feature
+        // Selection is tracked in webview; extension can react here
+        // (e.g. open terminals for the selected item)
         break;
       case "createItem":
-        // Will be implemented in list panel feature
+        this._handleCreateItem(message.title, message.column);
+        break;
+      case "deleteItem":
+        this._handleDeleteItem(message.id);
+        break;
+      case "moveItem":
+        this._handleMoveItem(message.id, message.toColumn, message.index);
+        break;
+      case "dragDrop":
+        this._handleDragDrop(message.itemId, message.toColumn, message.index);
         break;
       case "filterChanged":
-        // Will be implemented in list panel feature
+        // Filtering is handled entirely in the webview
         break;
       case "launchTerminal":
         // Will be implemented in terminal integration feature
@@ -98,6 +174,52 @@ export class WorkTerminalPanel {
       default:
         break;
     }
+  }
+
+  private async _handleCreateItem(title: string, column?: string): Promise<void> {
+    if (!this._workItemService) return;
+    if (!title) {
+      // Show input box for title
+      const input = await vscode.window.showInputBox({
+        prompt: "Enter item title",
+        placeHolder: "New item...",
+      });
+      if (!input) return;
+      title = input;
+    }
+    await this._workItemService.createItem(title, column);
+    await this._refreshItems();
+  }
+
+  private async _handleDeleteItem(id: string): Promise<void> {
+    if (!this._workItemService) return;
+    await this._workItemService.deleteItem(id);
+    await this._refreshItems();
+  }
+
+  private async _handleMoveItem(id: string, toColumn: string, index: number): Promise<void> {
+    if (!this._workItemService) return;
+    await this._workItemService.moveItem(id, toColumn, index);
+    await this._refreshItems();
+  }
+
+  private async _handleDragDrop(itemId: string, toColumn: string, index: number): Promise<void> {
+    if (!this._workItemService) return;
+
+    const items = this._workItemService.getItems();
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    const currentColumn = item.state === "done" ? "done" : item.state;
+    if (currentColumn !== toColumn) {
+      // Cross-column move: use mover to update state
+      await this._workItemService.moveItem(itemId, toColumn, index);
+    } else {
+      // Same-column reorder: just update custom order
+      this._workItemService.updateCustomOrder(itemId, toColumn, index);
+    }
+
+    await this._refreshItems();
   }
 
   // ---------------------------------------------------------------------------

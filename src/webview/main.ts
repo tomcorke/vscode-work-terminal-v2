@@ -1,5 +1,6 @@
 import type { WebviewApi } from "../types/vscode";
 import type { WebviewMessage, ExtensionMessage } from "./messages";
+import { ListPanel } from "./listPanel";
 
 const vscode: WebviewApi = acquireVsCodeApi();
 
@@ -11,17 +12,27 @@ function postMessage(msg: WebviewMessage): void {
   vscode.postMessage(msg);
 }
 
+// ---------------------------------------------------------------------------
+// List panel instance
+// ---------------------------------------------------------------------------
+
+let listPanel: ListPanel | null = null;
+
 window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
   const message = event.data;
   switch (message.type) {
     case "updateItems":
-      // Will be handled by list panel module
+      if (listPanel) {
+        listPanel.updateItems(message.items, message.columns);
+      }
       break;
     case "terminalOutput":
       // Will be handled by terminal panel module
       break;
     case "sessionStateChanged":
-      // Will be handled by terminal panel module
+      if (listPanel) {
+        listPanel.updateSessionState(message.itemId, message.sessions);
+      }
       break;
     case "themeChanged":
       handleThemeChange();
@@ -84,9 +95,9 @@ function handleThemeChange(): void {
 
 function initToolbar(): void {
   const filterInput = document.getElementById("filter-input") as HTMLInputElement | null;
-  if (filterInput) {
+  if (filterInput && listPanel) {
     filterInput.addEventListener("input", () => {
-      postMessage({ type: "filterChanged", query: filterInput.value });
+      listPanel!.applyFilter(filterInput.value);
     });
   }
 
@@ -103,6 +114,7 @@ function initToolbar(): void {
 // ---------------------------------------------------------------------------
 
 function init(): void {
+  listPanel = new ListPanel(vscode);
   initDivider();
   initToolbar();
   postMessage({ type: "ready" });
