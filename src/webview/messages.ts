@@ -37,7 +37,7 @@ export type WebviewMessage =
   | { type: "contextMenuDelete"; itemId: string }
   | { type: "doneAndCloseSessions"; itemId: string }
   | { type: "moveToTop"; itemId: string }
-  | { type: "requestLaunchModal" }
+  | { type: "requestLaunchModal"; itemId?: string }
   | { type: "resumeItem"; itemId: string }
   | { type: "installHooks" }
   | { type: "removeHooks" }

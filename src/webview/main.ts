@@ -78,6 +78,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       }
       break;
     }
+    case "selectItem":
+      terminalPanel?.selectItem(message.itemId);
+      break;
     case "debugApiState": {
       // Install or remove a terminal-only debug API on window.__workTerminalDebug
       const anyWindow = window as unknown as Record<string, unknown>;

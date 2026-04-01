@@ -49,9 +49,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           this._pendingMessages = [];
           break;
         case "itemSelected":
-          // Route through the panel's message handler so sidebar selection
-          // follows the same singleton reuse path as other sidebar actions.
-          this._forwardToPanelSafely(message);
+          this._selectItemInPanelSafely(message.id);
           break;
         case "createItem":
           // Forward to panel
@@ -93,6 +91,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private _forwardToPanelSafely(message: WebviewMessage): void {
     void this._forwardToPanel(message).catch((error: unknown) => {
       console.error("[work-terminal] Failed to forward sidebar message to panel", error);
+    });
+  }
+
+  private _selectItemInPanelSafely(itemId: string): void {
+    void vscode.commands.executeCommand("workTerminal.selectItem", itemId).catch((error: unknown) => {
+      console.error("[work-terminal] Failed to select sidebar item in panel", error);
     });
   }
 

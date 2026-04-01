@@ -36,6 +36,8 @@ export class WorkTerminalPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposed = false;
+  private _webviewReady = false;
+  private readonly _pendingMessages: ExtensionMessage[] = [];
 
   private _workItemService: WorkItemService | null = null;
   private _fileWatcher: FileWatcher | null = null;
@@ -73,6 +75,8 @@ export class WorkTerminalPanel {
       // Best-effort: persist sessions before tearing down.
       this._teardown();
       WorkTerminalPanel.current = undefined;
+      this._webviewReady = false;
+      this._pendingMessages.length = 0;
     });
 
     this._panel.webview.onDidReceiveMessage((message: WebviewMessage) => {
@@ -340,9 +344,12 @@ export class WorkTerminalPanel {
    * Post a typed message to the webview.
    */
   postMessage(message: ExtensionMessage): void {
-    if (!this._disposed) {
+    if (this._disposed) return;
+    if (this._webviewReady) {
       this._panel.webview.postMessage(message);
+      return;
     }
+    this._pendingMessages.push(message);
   }
 
   /**
@@ -522,6 +529,7 @@ export class WorkTerminalPanel {
   private _handleMessage(message: WebviewMessage): void {
     switch (message.type) {
       case "ready": {
+        this._webviewReady = true;
         this._refreshItems();
         this._sendButtonProfiles();
         this._postResumeItemIds();
@@ -531,22 +539,33 @@ export class WorkTerminalPanel {
         if (cfg.get<boolean>("exposeDebugApi", false)) {
           this.postMessage({ type: "debugApiState", enabled: true });
         }
+        this._flushPendingMessages();
         break;
       }
       case "itemSelected":
-        this._handleItemSelected(message.id);
+        this.postMessage({ type: "selectItem", itemId: message.id });
+        this._runMessageTask(this._handleItemSelected(message.id), "select item");
         break;
       case "createItem":
-        this._handleCreateItem(message.title, message.column);
+        this._runMessageTask(
+          this._handleCreateItem(message.title, message.column),
+          "create item",
+        );
         break;
       case "deleteItem":
-        this._handleDeleteItem(message.id);
+        this._runMessageTask(this._handleDeleteItem(message.id), "delete item");
         break;
       case "moveItem":
-        this._handleMoveItem(message.id, message.toColumn, message.index);
+        this._runMessageTask(
+          this._handleMoveItem(message.id, message.toColumn, message.index),
+          "move item",
+        );
         break;
       case "dragDrop":
-        this._handleDragDrop(message.itemId, message.toColumn, message.index);
+        this._runMessageTask(
+          this._handleDragDrop(message.itemId, message.toColumn, message.index),
+          "drag drop",
+        );
         break;
       case "filterChanged":
         // Filtering is handled entirely in the webview
@@ -582,13 +601,19 @@ export class WorkTerminalPanel {
         this._handleGetProfiles();
         break;
       case "saveProfile":
-        this._handleSaveProfile(message.profile);
+        this._runMessageTask(this._handleSaveProfile(message.profile), "save profile");
         break;
       case "deleteProfile":
-        this._handleDeleteProfile(message.profileId);
+        this._runMessageTask(
+          this._handleDeleteProfile(message.profileId),
+          "delete profile",
+        );
         break;
       case "reorderProfiles":
-        this._handleReorderProfiles(message.orderedIds);
+        this._runMessageTask(
+          this._handleReorderProfiles(message.orderedIds),
+          "reorder profiles",
+        );
         break;
       case "launchProfile":
         this._handleLaunchProfile(
@@ -600,43 +625,58 @@ export class WorkTerminalPanel {
         );
         break;
       case "importProfiles":
-        this._handleImportProfiles();
+        this._runMessageTask(this._handleImportProfiles(), "import profiles");
         break;
       case "exportProfiles":
-        this._handleExportProfiles();
+        this._runMessageTask(this._handleExportProfiles(), "export profiles");
         break;
       case "moveProfileUp":
-        this._handleMoveProfile(message.profileId, "up");
+        this._runMessageTask(
+          this._handleMoveProfile(message.profileId, "up"),
+          "move profile up",
+        );
         break;
       case "moveProfileDown":
-        this._handleMoveProfile(message.profileId, "down");
+        this._runMessageTask(
+          this._handleMoveProfile(message.profileId, "down"),
+          "move profile down",
+        );
         break;
       case "copyToClipboard":
         vscode.env.clipboard.writeText(message.text);
         break;
       case "contextMenuMove":
-        this._handleMoveItem(message.itemId, message.toColumn, 0);
+        this._runMessageTask(
+          this._handleMoveItem(message.itemId, message.toColumn, 0),
+          "context move item",
+        );
         break;
       case "contextMenuDelete":
-        this._handleDeleteItem(message.itemId);
+        this._runMessageTask(
+          this._handleDeleteItem(message.itemId),
+          "context delete item",
+        );
         break;
       case "doneAndCloseSessions":
-        this._handleDoneAndCloseSessions(message.itemId);
+        this._runMessageTask(
+          this._handleDoneAndCloseSessions(message.itemId),
+          "done and close sessions",
+        );
         break;
       case "moveToTop":
-        this._handleMoveToTop(message.itemId);
+        this._runMessageTask(this._handleMoveToTop(message.itemId), "move item to top");
         break;
       case "requestLaunchModal":
-        this.showLaunchModal();
+        this.showLaunchModal(message.itemId);
         break;
       case "resumeItem":
-        this._handleResumeItem(message.itemId);
+        this._runMessageTask(this._handleResumeItem(message.itemId), "resume item");
         break;
       case "installHooks":
-        this._handleInstallHooks();
+        this._runMessageTask(this._handleInstallHooks(), "install hooks");
         break;
       case "removeHooks":
-        this.handleRemoveHooks();
+        this._runMessageTask(this.handleRemoveHooks(), "remove hooks");
         break;
       case "dismissHookBanner":
         this._hookBannerService.dismiss();
@@ -644,6 +684,21 @@ export class WorkTerminalPanel {
       default:
         break;
     }
+  }
+
+  private _flushPendingMessages(): void {
+    while (this._pendingMessages.length > 0) {
+      const message = this._pendingMessages.shift();
+      if (message) {
+        this._panel.webview.postMessage(message);
+      }
+    }
+  }
+
+  private _runMessageTask(task: Promise<void>, action: string): void {
+    void task.catch((error: unknown) => {
+      console.error(`[work-terminal] Failed to ${action}:`, error);
+    });
   }
 
   private async _handleCreateItem(title: string, column?: string): Promise<void> {
