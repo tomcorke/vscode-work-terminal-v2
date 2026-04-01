@@ -110,7 +110,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   postMessage(message: ExtensionMessage): void {
     if (this._view && this._ready) {
       this._view.webview.postMessage(message);
-    } else {
+    } else if (this._view) {
+      // Queue only while view exists but hasn't sent "ready" yet.
+      // Don't queue when view is undefined (sidebar never opened) to
+      // avoid unbounded memory growth in long sessions.
       this._pendingMessages.push(message);
     }
   }
