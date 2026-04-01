@@ -735,6 +735,14 @@ a.wt-card-source--jira:hover {
   color: var(--vscode-tab-inactiveForeground);
 }
 
+.wt-tab-placeholder {
+  cursor: default;
+  border-bottom-color: var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+  font-weight: 500;
+  pointer-events: none;
+}
+
 .wt-tab:hover {
   --wt-tab-fill: var(--vscode-tab-hoverBackground, var(--vscode-list-hoverBackground));
 }
