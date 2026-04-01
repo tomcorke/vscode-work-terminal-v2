@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="#1e1e1e"/>
+
+  <!-- Terminal prompt -->
+  <text x="16" y="36" font-family="monospace" font-size="20" fill="#569cd6">&gt;_</text>
+
+  <!-- Kanban columns -->
+  <!-- Column 1 -->
+  <rect x="14" y="48" width="30" height="68" rx="4" fill="#2d2d2d" stroke="#3e3e3e" stroke-width="1"/>
+  <rect x="18" y="54" width="22" height="8" rx="2" fill="#569cd6"/>
+  <rect x="18" y="66" width="22" height="8" rx="2" fill="#569cd6" opacity="0.6"/>
+  <rect x="18" y="78" width="22" height="8" rx="2" fill="#569cd6" opacity="0.3"/>
+
+  <!-- Column 2 -->
+  <rect x="49" y="48" width="30" height="68" rx="4" fill="#2d2d2d" stroke="#3e3e3e" stroke-width="1"/>
+  <rect x="53" y="54" width="22" height="8" rx="2" fill="#dcdcaa"/>
+  <rect x="53" y="66" width="22" height="8" rx="2" fill="#dcdcaa" opacity="0.6"/>
+
+  <!-- Column 3 -->
+  <rect x="84" y="48" width="30" height="68" rx="4" fill="#2d2d2d" stroke="#3e3e3e" stroke-width="1"/>
+  <rect x="88" y="54" width="22" height="8" rx="2" fill="#6a9955"/>
+  <rect x="88" y="66" width="22" height="8" rx="2" fill="#6a9955" opacity="0.6"/>
+  <rect x="88" y="78" width="22" height="8" rx="2" fill="#6a9955" opacity="0.3"/>
+  <rect x="88" y="90" width="22" height="8" rx="2" fill="#6a9955" opacity="0.15"/>
+</svg>
