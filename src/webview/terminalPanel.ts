@@ -198,6 +198,9 @@ export class TerminalPanel {
 
     terminal.open(containerEl);
 
+    // Scroll-to-bottom button
+    this.attachScrollButton(containerEl, terminal);
+
     // Try WebGL renderer, fall back to canvas
     let webglAddon: WebglAddon | null = null;
     try {
@@ -732,6 +735,51 @@ export class TerminalPanel {
     for (const tab of this.tabs) {
       tab.terminal.options.theme = theme;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Scroll-to-bottom button
+  // -------------------------------------------------------------------------
+
+  private attachScrollButton(containerEl: HTMLElement, terminal: Terminal): void {
+    const btn = document.createElement("button");
+    btn.className = "wt-scroll-btn";
+    btn.setAttribute("aria-label", "Scroll to bottom");
+    btn.textContent = "\u2193";
+    containerEl.appendChild(btn);
+
+    let raf: number | null = null;
+    let lastVisible = false;
+
+    const updateVisibility = () => {
+      raf = null;
+      const buf = terminal.buffer.active;
+      const shouldShow = buf.viewportY < buf.baseY;
+      if (shouldShow === lastVisible) return;
+      lastVisible = shouldShow;
+      btn.style.display = shouldShow ? "flex" : "none";
+    };
+
+    const scheduleUpdate = () => {
+      if (raf !== null) return;
+      raf = requestAnimationFrame(updateVisibility);
+    };
+
+    terminal.onScroll(scheduleUpdate);
+
+    // xterm's onScroll may not fire for trackpad/wheel scrolling,
+    // so also listen on the viewport element's native scroll event.
+    const viewport = containerEl.querySelector(".xterm-viewport");
+    if (viewport) {
+      viewport.addEventListener("scroll", scheduleUpdate, { passive: true });
+    }
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      terminal.scrollToBottom();
+      terminal.focus();
+      scheduleUpdate();
+    });
   }
 
   // -------------------------------------------------------------------------
