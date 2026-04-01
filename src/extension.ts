@@ -228,6 +228,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.rebuildNodePty", async () => {
+      const extension = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
+      const canRepairLocally =
+        extension?.extensionMode === vscode.ExtensionMode.Development
+        || extension?.extensionMode === vscode.ExtensionMode.Test;
+      if (!canRepairLocally) {
+        vscode.window.showInformationMessage(
+          "node-pty rebuild is only available from a local Extension Development Host.",
+        );
+        return;
+      }
+
       let plan;
       try {
         plan = createNodePtyRebuildPlan(process.versions.electron);

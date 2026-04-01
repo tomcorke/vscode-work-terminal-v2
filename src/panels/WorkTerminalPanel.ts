@@ -966,14 +966,12 @@ export class WorkTerminalPanel {
   }
 
   private _handleLaunchTerminal(itemId: string, profile?: string): void {
-    this._maybeWarnAboutNodePtyFallback();
     const sessionType: SessionType = profile && isSessionType(profile) ? profile : "shell";
     const cwd = this._resolveItemCwd(itemId);
-    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
+    this._createTerminal({ sessionType, itemId, cwd });
   }
 
   private _handleCreateTerminal(terminalType: string, itemId?: string): void {
-    this._maybeWarnAboutNodePtyFallback();
     const typeMap: Record<string, SessionType> = {
       shell: "shell",
       claude: "claude",
@@ -981,7 +979,7 @@ export class WorkTerminalPanel {
     };
     const sessionType = typeMap[terminalType] || "shell";
     const cwd = itemId ? this._resolveItemCwd(itemId) : undefined;
-    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
+    this._createTerminal({ sessionType, itemId, cwd });
   }
 
   // ---------------------------------------------------------------------------
@@ -995,7 +993,7 @@ export class WorkTerminalPanel {
       return;
     }
     if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1003,7 +1001,7 @@ export class WorkTerminalPanel {
         resumeSessionId: entry.claudeSessionId,
       });
     } else {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1020,7 +1018,7 @@ export class WorkTerminalPanel {
     if (!entry) return;
 
     if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1028,7 +1026,7 @@ export class WorkTerminalPanel {
         resumeSessionId: entry.claudeSessionId,
       });
     } else {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1105,7 +1103,6 @@ export class WorkTerminalPanel {
     extraArgs?: string,
   ): void {
     if (!this._profileManager) return;
-    this._maybeWarnAboutNodePtyFallback();
     const profile = this._profileManager.getProfile(profileId);
     if (!profile) return;
 
@@ -1120,7 +1117,7 @@ export class WorkTerminalPanel {
     const resolvedArgs = extraArgs ?? this._profileManager.resolveArguments(profile);
     const args = resolvedArgs ? parseExtraArgs(resolvedArgs) : undefined;
 
-    this._terminalManager.createTerminal({
+    this._createTerminal({
       sessionType,
       itemId,
       command,
@@ -1129,6 +1126,13 @@ export class WorkTerminalPanel {
       args,
       contextPrompt,
     });
+  }
+
+  private _createTerminal(
+    options: Parameters<TerminalManager["createTerminal"]>[0],
+  ): void {
+    this._maybeWarnAboutNodePtyFallback();
+    this._terminalManager.createTerminal(options);
   }
 
   private _maybeWarnAboutNodePtyFallback(): void {
@@ -1142,12 +1146,19 @@ export class WorkTerminalPanel {
     }
 
     this._nodePtyWarningShown = true;
+    const extension = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
+    const canRepairLocally =
+      extension?.extensionMode === vscode.ExtensionMode.Development
+      || extension?.extensionMode === vscode.ExtensionMode.Test;
+    const actions = canRepairLocally
+      ? ["Rebuild node-pty", "Copy Diagnostics"] as const
+      : ["Copy Diagnostics"] as const;
+
     void vscode.window.showWarningMessage(
       formatNodePtyLoadWarning(nativePtyStatus),
-      "Rebuild node-pty",
-      "Copy Diagnostics",
+      ...actions,
     ).then((selection) => {
-      if (selection === "Rebuild node-pty") {
+      if (selection === "Rebuild node-pty" && canRepairLocally) {
         void vscode.commands.executeCommand("workTerminal.rebuildNodePty");
       } else if (selection === "Copy Diagnostics") {
         void vscode.commands.executeCommand("workTerminal.copyDiagnostics");
