@@ -21,39 +21,116 @@ function normalizeWaitingLine(line: string): string {
     .trim();
 }
 
-/**
- * Detect whether terminal output lines indicate the agent is waiting for input.
- */
-export function hasAgentWaitingIndicator(lines: string[]): boolean {
-  if (lines.length === 0) return false;
+const GENERIC_WAITING_QUESTION_WINDOW = 5;
+const HIDDEN_CLAUDE_QUESTION_WINDOW = 10;
+const HIDDEN_CLAUDE_PROMPT_CHROME_SCAN_LINES = 6;
 
-  const tail = lines.slice(-20);
+/**
+ * Detect hidden Claude prompts where a question is followed by an empty
+ * prompt character, then a shell-like indicator below it.
+ */
+function looksLikeHiddenClaudePrompt(
+  tail: string[],
+  questionIndex: number,
+): boolean {
+  const normalizedQuestion = normalizeWaitingLine(tail[questionIndex]);
+  if (
+    questionIndex < tail.length - HIDDEN_CLAUDE_QUESTION_WINDOW ||
+    !normalizedQuestion.endsWith("?") ||
+    normalizedQuestion.length <= 10
+  ) {
+    return false;
+  }
+
+  const normalizedAfterQuestion = tail
+    .slice(
+      questionIndex + 1,
+      Math.min(
+        tail.length,
+        questionIndex + 1 + HIDDEN_CLAUDE_PROMPT_CHROME_SCAN_LINES,
+      ),
+    )
+    .map((line) => normalizeWaitingLine(line))
+    .filter((line) => line.length > 0);
+  const promptIndex = normalizedAfterQuestion.findIndex(
+    (line) => line === "\u276f",
+  );
+  if (promptIndex === -1) return false;
+  if (
+    normalizedAfterQuestion
+      .slice(0, promptIndex)
+      .some((line) => /^\u276f\s+\S/.test(line))
+  ) {
+    return false;
+  }
+
+  return normalizedAfterQuestion
+    .slice(promptIndex + 1)
+    .some((line) => /^\u279c\s+\S/.test(line) || /^\u23f5\u23f5/.test(line));
+}
+
+/**
+ * Find the index of the last line that looks like a waiting indicator.
+ * Returns -1 if no waiting indicator is found.
+ */
+function findLastWaitingLineIndex(lines: string[]): number {
+  if (lines.length === 0) return -1;
+
+  const tailStart = Math.max(0, lines.length - 20);
+  const tail = lines.slice(tailStart);
+
   for (let i = tail.length - 1; i >= Math.max(0, tail.length - 15); i--) {
     const normalized = normalizeWaitingLine(tail[i]);
     if (!normalized) continue;
 
     // Permission prompts
-    if (/Enter to (?:select|confirm)|to navigate/i.test(normalized)) return true;
-    if (/\bAllow\b.*\?/i.test(normalized)) return true;
-    if (/\ballowOnce\b|\bdenyOnce\b|\ballowAlways\b/i.test(normalized)) return true;
+    if (/Enter to (?:select|confirm)|to navigate/i.test(normalized))
+      return tailStart + i;
+    if (/\bAllow\b.*\?/i.test(normalized)) return tailStart + i;
+    if (/\ballowOnce\b|\bdenyOnce\b|\ballowAlways\b/i.test(normalized))
+      return tailStart + i;
 
-    // Numbered selection lists
-    if (/^\s*[>\u276f]\s*\d+\.\s+\S/.test(normalized)) return true;
+    // Numbered selection lists (with arrow/chevron prefix)
+    if (/^\s*[>\u276f]\s*\d+\.\s+\S/.test(normalized))
+      return tailStart + i;
 
-    // Yes/No prompts
-    if (/^\s*(Yes|No)\s*$/i.test(normalized)) return true;
+    // Numbered selection lists (bare numbers with a preceding question)
+    if (/^\s*\(?\d+\)?\s+\S/.test(normalized) && i > 0) {
+      for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
+        const normalizedPrevious = normalizeWaitingLine(tail[j]);
+        if (normalizedPrevious.endsWith("?")) return tailStart + i;
+      }
+    }
+
+    // Hidden Claude prompts (question + empty prompt + shell indicator)
+    if (looksLikeHiddenClaudePrompt(tail, i)) return tailStart + i;
 
     // Questions (only in the last few lines)
     if (
-      i >= tail.length - 5 &&
+      i >= tail.length - GENERIC_WAITING_QUESTION_WINDOW &&
       normalized.endsWith("?") &&
       normalized.length > 10
     ) {
-      return true;
+      return tailStart + i;
     }
+
+    // Yes/No prompts
+    if (/^\s*(Yes|No)\s*$/i.test(normalized)) return tailStart + i;
   }
 
-  return false;
+  return -1;
+}
+
+/**
+ * Detect whether terminal output lines indicate the agent is waiting for input.
+ * If active indicators appear after the waiting line, the agent is no longer waiting.
+ */
+export function hasAgentWaitingIndicator(lines: string[]): boolean {
+  const waitingIndex = findLastWaitingLineIndex(lines);
+  if (waitingIndex === -1) return false;
+  // If there are active indicators after the waiting line, the agent resumed work
+  if (hasAgentActiveIndicator(lines.slice(waitingIndex + 1))) return false;
+  return true;
 }
 
 /**
