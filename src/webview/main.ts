@@ -87,6 +87,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "resumeItemIds":
       listPanel?.updateResumeItemIds(message.itemIds);
       break;
+    case "hookBannerState":
+      terminalPanel?.updateHookBanner(message.visible, message.message);
+      break;
     case "focusFilter":
       showFilter();
       break;

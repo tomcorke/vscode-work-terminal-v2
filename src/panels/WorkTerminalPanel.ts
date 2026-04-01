@@ -16,6 +16,8 @@ import { agentTypeToSessionType } from "../core/agents/types";
 import type { AgentProfile } from "../core/agents/types";
 import { showLaunchModal, type LaunchModalResult } from "../agents/AgentLaunchModal";
 import { parseExtraArgs } from "../terminal/AgentLauncher";
+import { HookBannerService } from "../agents/HookBannerService";
+import { installHooks } from "../agents/ClaudeHookManager";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -39,6 +41,7 @@ export class WorkTerminalPanel {
   private _sessionManager: SessionManager | null = null;
   private _profileManager: AgentProfileManager | null = null;
   private readonly _sessionTrackers = new Map<string, AgentSessionTracker>();
+  private readonly _hookBannerService = new HookBannerService();
 
   /** URI of the detail editor tab opened by the extension (null if none). */
   private _detailEditorUri: vscode.Uri | null = null;
@@ -132,6 +135,11 @@ export class WorkTerminalPanel {
           break;
         }
       }
+    });
+
+    // Wire up hook banner service to push state to webview
+    this._hookBannerService.onStateChanged((state) => {
+      this.postMessage({ type: "hookBannerState", visible: state.visible, message: state.message });
     });
   }
 
@@ -294,6 +302,7 @@ export class WorkTerminalPanel {
     this._fileWatcher?.dispose();
     this._renameDisposable?.dispose();
     this._closeDetailEditor();
+    this._hookBannerService.dispose();
 
     const config = vscode.workspace.getConfiguration("workTerminal");
     const keepAlive = config.get<boolean>("keepSessionsAlive", true);
@@ -425,6 +434,10 @@ export class WorkTerminalPanel {
       () => this._refreshItems(),
     );
 
+    this._hookBannerService.updateAcceptSetting(
+      config.get<boolean>("acceptNoResumeHooks", false),
+    );
+
     await this._refreshItems();
   }
 
@@ -434,11 +447,14 @@ export class WorkTerminalPanel {
 
   private _handleMessage(message: WebviewMessage): void {
     switch (message.type) {
-      case "ready":
+      case "ready": {
         this._refreshItems();
         this._sendButtonProfiles();
         this._postResumeItemIds();
+        const cfg = vscode.workspace.getConfiguration("workTerminal");
+        this._hookBannerService.start(cfg.get<boolean>("acceptNoResumeHooks", false));
         break;
+      }
       case "itemSelected":
         this._handleItemSelected(message.id);
         break;
@@ -537,6 +553,12 @@ export class WorkTerminalPanel {
         break;
       case "resumeItem":
         this._handleResumeItem(message.itemId);
+        break;
+      case "installHooks":
+        this._handleInstallHooks();
+        break;
+      case "dismissHookBanner":
+        this._hookBannerService.dismiss();
         break;
       default:
         break;
@@ -1023,6 +1045,24 @@ export class WorkTerminalPanel {
           args: entry.commandArgs,
         });
       }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hook installation
+  // ---------------------------------------------------------------------------
+
+  private async _handleInstallHooks(): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const cwd = workspaceFolder?.uri.fsPath ?? require("os").homedir();
+
+    try {
+      await installHooks(cwd);
+      vscode.window.showInformationMessage("Claude hooks installed successfully.");
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to install hooks: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
