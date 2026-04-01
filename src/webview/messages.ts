@@ -33,6 +33,7 @@ export type WebviewMessage =
   | { type: "copyToClipboard"; text: string }
   | { type: "contextMenuMove"; itemId: string; toColumn: string }
   | { type: "contextMenuDelete"; itemId: string }
+  | { type: "moveToTop"; itemId: string }
   | { type: "requestLaunchModal" };
 
 // ---- Extension -> Webview ----

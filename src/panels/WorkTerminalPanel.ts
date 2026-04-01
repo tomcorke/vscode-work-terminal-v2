@@ -440,6 +440,9 @@ export class WorkTerminalPanel {
       case "contextMenuDelete":
         this._handleDeleteItem(message.itemId);
         break;
+      case "moveToTop":
+        this._handleMoveToTop(message.itemId);
+        break;
       case "requestLaunchModal":
         this.showLaunchModal();
         break;
@@ -519,6 +522,14 @@ export class WorkTerminalPanel {
   private async _handleMoveItem(id: string, toColumn: string, index: number): Promise<void> {
     if (!this._workItemService) return;
     await this._workItemService.moveItem(id, toColumn, index);
+    await this._refreshItems();
+  }
+
+  private async _handleMoveToTop(itemId: string): Promise<void> {
+    if (!this._workItemService) return;
+    const item = this._workItemService.getItemById(itemId);
+    if (!item) return;
+    this._workItemService.updateCustomOrder(itemId, item.state, 0);
     await this._refreshItems();
   }
 

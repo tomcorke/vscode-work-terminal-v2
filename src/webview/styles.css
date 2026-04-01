@@ -243,6 +243,30 @@ html, body {
   gap: 6px;
 }
 
+/* Move-to-top button: hidden by default, shown on card hover */
+.wt-move-to-top-btn {
+  display: none;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  opacity: 0.7;
+}
+
+.wt-move-to-top-btn:hover {
+  opacity: 1;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.wt-card-wrapper:hover .wt-move-to-top-btn {
+  display: inline-flex;
+}
+
 /* Card title */
 .wt-card-title {
   font-weight: 500;
