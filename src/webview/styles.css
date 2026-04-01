@@ -511,9 +511,19 @@ a.wt-card-source--jira:hover {
   white-space: nowrap;
 }
 
-.wt-context-menu-item:hover {
+.wt-context-menu-item:hover,
+.wt-context-menu-item:focus-visible {
   background: var(--vscode-menu-selectionBackground);
   color: var(--vscode-menu-selectionForeground);
+}
+
+.wt-context-menu-item-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
 }
 
 .wt-context-menu-separator {
