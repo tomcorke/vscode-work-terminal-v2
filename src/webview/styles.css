@@ -170,7 +170,7 @@ html, body {
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   user-select: none;
-  border-bottom: 1px solid transparent;
+  border-bottom: 2px solid transparent;
 }
 
 .wt-section-header:hover {
@@ -180,7 +180,7 @@ html, body {
 /* Section header colours per state */
 .wt-section-header-priority { border-bottom-color: #e53e3e; }
 .wt-section-header-active { border-bottom-color: var(--vscode-focusBorder); }
-.wt-section-header-todo { border-bottom-color: var(--vscode-descriptionForeground); }
+.wt-section-header-todo { border-bottom-color: #d69e2e; }
 .wt-section-header-done { border-bottom-color: #38a169; }
 
 .wt-collapse-icon {
