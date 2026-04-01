@@ -12,6 +12,7 @@ import type { SessionType } from "../core/session/types";
 import { isResumableSessionType } from "../core/session/types";
 import { AgentStateDetector, aggregateState } from "./AgentStateDetector";
 import type { AgentState } from "./AgentStateDetector";
+import { AgentSessionRename } from "../agents/AgentSessionRename";
 import { buildAgentLaunchArgs, generateSessionId, augmentPath } from "./AgentLauncher";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,7 @@ interface TerminalInstance {
   pty: IPty | null;
   process: ChildProcess | null;
   stateDetector: AgentStateDetector | null;
+  sessionRename: AgentSessionRename | null;
   disposed: boolean;
   disposables: Array<{ dispose(): void }>;
 }
@@ -94,6 +96,8 @@ export class TerminalManager {
   onClosed?: (sessionId: string) => void;
   /** Callback when agent state changes. */
   onAgentStateChanged?: (sessionId: string, state: AgentState) => void;
+  /** Callback when agent session is renamed via terminal output. */
+  onRenamed?: (sessionId: string, newLabel: string) => void;
 
   private getDefaultCwd(): string {
     const config = vscode.workspace.getConfiguration("workTerminal");
@@ -199,6 +203,7 @@ export class TerminalManager {
       pty: null,
       process: null,
       stateDetector: null,
+      sessionRename: null,
       disposed: false,
       disposables: [],
     };
@@ -211,6 +216,9 @@ export class TerminalManager {
       };
       detector.start();
       instance.stateDetector = detector;
+
+      const rename = new AgentSessionRename();
+      instance.sessionRename = rename;
     }
 
     console.log(`[TerminalManager] Spawning: ${command} ${args.join(" ")} (cwd: ${cwd})`);
@@ -231,6 +239,7 @@ export class TerminalManager {
         const dataDisposable = pty.onData((data: string) => {
           if (instance.disposed) return;
           instance.stateDetector?.trackOutput(data);
+          this._checkRename(instance, data);
           this.onOutput?.(sessionId, data);
         });
         instance.disposables.push(dataDisposable);
@@ -275,6 +284,7 @@ export class TerminalManager {
       if (instance.disposed) return;
       const str = data.toString("utf8");
       instance.stateDetector?.trackOutput(str);
+      this._checkRename(instance, str);
       this.onOutput?.(instance.sessionId, str);
     });
 
@@ -282,6 +292,7 @@ export class TerminalManager {
       if (instance.disposed) return;
       const str = data.toString("utf8");
       instance.stateDetector?.trackOutput(str);
+      this._checkRename(instance, str);
       this.onOutput?.(instance.sessionId, str);
     });
 
@@ -476,6 +487,14 @@ export class TerminalManager {
   disposeAll(): void {
     for (const sessionId of [...this.terminals.keys()]) {
       this.destroyTerminal(sessionId);
+    }
+  }
+
+  private _checkRename(instance: TerminalInstance, data: string): void {
+    if (!instance.sessionRename) return;
+    const detected = instance.sessionRename.processChunk(data);
+    if (detected) {
+      this.onRenamed?.(instance.sessionId, detected);
     }
   }
 

@@ -136,7 +136,10 @@ export class TaskCard implements CardRenderer {
 
     items.push({
       label: "Delete Task",
-      action: () => ctx.onDelete(),
+      action: async () => {
+        if (!await dangerConfirm(`Delete "${item.title}"`)) return;
+        ctx.onDelete();
+      },
     });
 
     return items;
