@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Debug API (`window.__workTerminalDebug`) exposed in webview when `workTerminal.exposeDebugApi` setting is enabled, with `getSnapshot()`, `getAllActiveTabs()`, `findTabsByLabel()`, `getActiveSessionIds()`, `getPersistedSessions()`, and `getSessionDiagnostics()` methods for development and troubleshooting (Closes #79)
 - `Copy Session Diagnostics` command (`workTerminal.copyDiagnostics`) - copies extension state snapshot to clipboard for debugging
 - ID backfilling for path-only work items: when a selected item has no frontmatter UUID, asynchronously writes a durable UUID and rekeys all internal maps (terminals, custom order, sessions) to the new ID (Closes #80)
+- Rename detection for shell `mv` operations: FileWatcher buffers delete events for 2 seconds and matches subsequent creates by UUID (with folder heuristic fallback), treating them as renames instead of delete+create cycles (Closes #81)
 
 ## [0.1.0] - 2026-04-01
 
