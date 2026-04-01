@@ -29,12 +29,13 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       if (listPanel) {
         listPanel.updateItems(message.items, message.columns);
       }
+      terminalPanel?.updateWorkItems(message.items);
       break;
     case "terminalOutput":
       terminalPanel?.writeOutput(message.sessionId, message.data);
       break;
     case "terminalCreated":
-      terminalPanel?.addTerminal(message.sessionId, message.label, message.sessionType);
+      terminalPanel?.addTerminal(message.sessionId, message.label, message.sessionType, message.itemId);
       break;
     case "terminalClosed":
       terminalPanel?.removeTerminal(message.sessionId);

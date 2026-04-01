@@ -12,7 +12,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import type { WebviewMessage, TerminalSessionInfo, ButtonProfileInfo } from "./messages";
+import type { WebviewMessage, TerminalSessionInfo, ButtonProfileInfo, WorkItemDTO } from "./messages";
 
 // ---------------------------------------------------------------------------
 // xterm.js CSS (embedded to avoid CSP issues with external stylesheets)
@@ -124,6 +124,7 @@ interface TerminalTab {
   sessionId: string;
   label: string;
   sessionType: string;
+  itemId: string | null;
   terminal: Terminal;
   fitAddon: FitAddon;
   searchAddon: SearchAddon;
@@ -158,6 +159,7 @@ export class TerminalPanel {
   private resizeObserver: ResizeObserver;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
+  private workItems: WorkItemDTO[] = [];
 
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
@@ -184,7 +186,7 @@ export class TerminalPanel {
   // Terminal lifecycle
   // -------------------------------------------------------------------------
 
-  addTerminal(sessionId: string, label: string, sessionType: string): void {
+  addTerminal(sessionId: string, label: string, sessionType: string, itemId?: string): void {
     const containerEl = document.createElement("div");
     containerEl.className = "wt-terminal-instance hidden";
     containerEl.dataset.sessionId = sessionId;
@@ -244,7 +246,7 @@ export class TerminalPanel {
     this.attachTerminalKeyHandler(terminal, sessionId);
 
     const tab: TerminalTab = {
-      sessionId, label, sessionType, terminal, fitAddon, searchAddon,
+      sessionId, label, sessionType, itemId: itemId ?? null, terminal, fitAddon, searchAddon,
       containerEl, webglAddon, agentState: "inactive",
     };
 
@@ -414,6 +416,13 @@ export class TerminalPanel {
   // -------------------------------------------------------------------------
 
   /**
+   * Update the cached work items list for context menu features.
+   */
+  updateWorkItems(items: WorkItemDTO[]): void {
+    this.workItems = items;
+  }
+
+  /**
    * Update the spawn button area with profile-driven buttons.
    * Called on init and whenever button profiles change from the extension host.
    */
@@ -558,35 +567,178 @@ export class TerminalPanel {
       `position: fixed; left: ${x}px; top: ${y}px; z-index: 1000; ` +
       "background: var(--vscode-menu-background); color: var(--vscode-menu-foreground); " +
       "border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border)); " +
-      "border-radius: 4px; padding: 4px 0; min-width: 140px; " +
+      "border-radius: 4px; padding: 4px 0; min-width: 160px; " +
       "box-shadow: 0 2px 8px rgba(0,0,0,0.3);";
 
-    const items = [
-      { label: "Rename", action: () => {
-        const labelEl = this.tabsContainerEl.children[index]?.querySelector(".wt-tab-label");
-        if (labelEl) this.startInlineRename(index, labelEl as HTMLElement);
-      }},
-      { label: "Close", action: () => this.postMessage({ type: "closeTerminal", sessionId: tab.sessionId }) },
-      { label: "Close Others", action: () => {
-        for (const t of this.tabs) {
-          if (t.sessionId !== tab.sessionId) this.postMessage({ type: "closeTerminal", sessionId: t.sessionId });
-        }
-      }},
-    ];
+    const menuItemStyle =
+      "padding: 4px 16px; cursor: pointer; font-size: 12px; white-space: nowrap;";
+    const disabledStyle =
+      "padding: 4px 16px; font-size: 12px; white-space: nowrap; opacity: 0.5; cursor: default;";
+    const separatorStyle =
+      "height: 1px; margin: 4px 8px; background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border));";
 
-    for (const item of items) {
-      const itemEl = document.createElement("div");
-      itemEl.textContent = item.label;
-      itemEl.style.cssText = "padding: 4px 16px; cursor: pointer; font-size: 12px; white-space: nowrap;";
-      itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "var(--vscode-menu-selectionBackground)"; itemEl.style.color = "var(--vscode-menu-selectionForeground)"; });
-      itemEl.addEventListener("mouseleave", () => { itemEl.style.background = ""; itemEl.style.color = ""; });
-      itemEl.addEventListener("click", () => { menu.remove(); item.action(); });
-      menu.appendChild(itemEl);
+    const addItem = (label: string, action: (() => void) | null) => {
+      const el = document.createElement("div");
+      el.textContent = label;
+      el.style.cssText = action ? menuItemStyle : disabledStyle;
+      if (action) {
+        el.addEventListener("mouseenter", () => { el.style.background = "var(--vscode-menu-selectionBackground)"; el.style.color = "var(--vscode-menu-selectionForeground)"; });
+        el.addEventListener("mouseleave", () => { el.style.background = ""; el.style.color = ""; });
+        el.addEventListener("click", () => { menu.remove(); action(); });
+      }
+      menu.appendChild(el);
+    };
+
+    const addSeparator = () => {
+      const sep = document.createElement("div");
+      sep.style.cssText = separatorStyle;
+      menu.appendChild(sep);
+    };
+
+    // Rename
+    addItem("Rename", () => {
+      const labelEl = this.tabsContainerEl.children[index]?.querySelector(".wt-tab-label");
+      if (labelEl) this.startInlineRename(index, labelEl as HTMLElement);
+    });
+
+    // Move to Item submenu
+    const otherItems = this.workItems.filter((item) => item.id !== tab.itemId);
+    if (otherItems.length > 0) {
+      const moveEl = document.createElement("div");
+      moveEl.textContent = "Move to Item";
+      moveEl.style.cssText = menuItemStyle + " position: relative;";
+      // Add submenu arrow
+      const arrow = document.createElement("span");
+      arrow.textContent = "\u25B6";
+      arrow.style.cssText = "float: right; margin-left: 12px; font-size: 10px;";
+      moveEl.appendChild(arrow);
+
+      let submenu: HTMLElement | null = null;
+      const showSubmenu = () => {
+        if (submenu) return;
+        submenu = document.createElement("div");
+        submenu.className = "wt-context-menu wt-context-submenu";
+        submenu.style.cssText =
+          "position: fixed; z-index: 1001; " +
+          "background: var(--vscode-menu-background); color: var(--vscode-menu-foreground); " +
+          "border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border)); " +
+          "border-radius: 4px; padding: 4px 0; min-width: 160px; max-height: 300px; overflow-y: auto; " +
+          "box-shadow: 0 2px 8px rgba(0,0,0,0.3);";
+
+        for (const item of otherItems) {
+          const subEl = document.createElement("div");
+          subEl.textContent = item.title;
+          subEl.style.cssText = menuItemStyle;
+          subEl.addEventListener("mouseenter", () => { subEl.style.background = "var(--vscode-menu-selectionBackground)"; subEl.style.color = "var(--vscode-menu-selectionForeground)"; });
+          subEl.addEventListener("mouseleave", () => { subEl.style.background = ""; subEl.style.color = ""; });
+          subEl.addEventListener("click", () => {
+            menu.remove();
+            submenu?.remove();
+            tab.itemId = item.id;
+            this.postMessage({ type: "moveTerminalToItem", sessionId: tab.sessionId, toItemId: item.id });
+          });
+          submenu.appendChild(subEl);
+        }
+
+        document.body.appendChild(submenu);
+
+        // Position submenu to the right of the parent item
+        const rect = moveEl.getBoundingClientRect();
+        const subRect = submenu.getBoundingClientRect();
+        let subLeft = rect.right;
+        let subTop = rect.top;
+        // Flip left if it would overflow the viewport
+        if (subLeft + subRect.width > window.innerWidth) {
+          subLeft = rect.left - subRect.width;
+        }
+        // Adjust top if it would overflow the viewport
+        if (subTop + subRect.height > window.innerHeight) {
+          subTop = Math.max(0, window.innerHeight - subRect.height);
+        }
+        submenu.style.left = `${subLeft}px`;
+        submenu.style.top = `${subTop}px`;
+      };
+
+      const hideSubmenu = () => {
+        if (submenu) { submenu.remove(); submenu = null; }
+      };
+
+      moveEl.addEventListener("mouseenter", () => {
+        moveEl.style.background = "var(--vscode-menu-selectionBackground)";
+        moveEl.style.color = "var(--vscode-menu-selectionForeground)";
+        showSubmenu();
+      });
+      moveEl.addEventListener("mouseleave", (e) => {
+        const related = e.relatedTarget as Node | null;
+        if (submenu && related && submenu.contains(related)) return;
+        moveEl.style.background = "";
+        moveEl.style.color = "";
+        hideSubmenu();
+      });
+
+      menu.appendChild(moveEl);
+    } else {
+      addItem("Move to Item", null);
+    }
+
+    // Copy Tab Info
+    addItem("Copy Tab Info", () => {
+      const itemTitle = tab.itemId
+        ? this.workItems.find((i) => i.id === tab.itemId)?.title ?? "Unknown"
+        : "None";
+      const lines = [
+        `Label: ${tab.label}`,
+        `Type: ${tab.sessionType}`,
+        `Session ID: ${tab.sessionId}`,
+        `Item: ${itemTitle}`,
+      ];
+      this.postMessage({ type: "copyToClipboard", text: lines.join("\n") });
+    });
+
+    addSeparator();
+
+    // Close
+    addItem("Close", () => {
+      this.postMessage({ type: "closeTerminal", sessionId: tab.sessionId });
+    });
+
+    // Close Others
+    addItem("Close Others", () => {
+      for (const t of this.tabs) {
+        if (t.sessionId !== tab.sessionId) {
+          this.postMessage({ type: "closeTerminal", sessionId: t.sessionId });
+        }
+      }
+    });
+
+    // Close All for Item
+    if (tab.itemId) {
+      const itemTitle = this.workItems.find((i) => i.id === tab.itemId)?.title;
+      const closeAllLabel = itemTitle ? `Close All for "${itemTitle}"` : "Close All for Item";
+      addItem(closeAllLabel, () => {
+        this.postMessage({ type: "closeAllTerminalsForItem", itemId: tab.itemId! });
+      });
     }
 
     document.body.appendChild(menu);
+
+    // Adjust menu position if it would overflow the viewport
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) {
+      menu.style.left = `${Math.max(0, window.innerWidth - menuRect.width)}px`;
+    }
+    if (menuRect.bottom > window.innerHeight) {
+      menu.style.top = `${Math.max(0, window.innerHeight - menuRect.height)}px`;
+    }
+
     const dismiss = (e: MouseEvent) => {
-      if (!menu.contains(e.target as Node)) { menu.remove(); document.removeEventListener("mousedown", dismiss); }
+      if (!menu.contains(e.target as Node)) {
+        menu.remove();
+        // Also remove any open submenu
+        const sub = document.querySelector(".wt-context-submenu");
+        if (sub) sub.remove();
+        document.removeEventListener("mousedown", dismiss);
+      }
     };
     requestAnimationFrame(() => { document.addEventListener("mousedown", dismiss); });
   }

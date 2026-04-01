@@ -68,8 +68,8 @@ export class WorkTerminalPanel {
     this._terminalManager.onOutput = (sessionId, data) => {
       this.postMessage({ type: "terminalOutput", sessionId, data });
     };
-    this._terminalManager.onCreated = (sessionId, label, sessionType) => {
-      this.postMessage({ type: "terminalCreated", sessionId, label, sessionType });
+    this._terminalManager.onCreated = (sessionId, label, sessionType, itemId) => {
+      this.postMessage({ type: "terminalCreated", sessionId, label, sessionType, itemId: itemId ?? undefined });
       // Notify webview of updated session state for the item
       this._postSessionStateForTerminal(sessionId);
     };
@@ -392,6 +392,12 @@ export class WorkTerminalPanel {
       case "closeTerminal":
         this._terminalManager.destroyTerminal(message.sessionId);
         break;
+      case "closeAllTerminalsForItem":
+        this._handleCloseAllTerminalsForItem(message.itemId);
+        break;
+      case "moveTerminalToItem":
+        this._handleMoveTerminalToItem(message.sessionId, message.toItemId);
+        break;
       case "renameTerminal":
         this._terminalManager.renameTerminal(message.sessionId, message.label);
         break;
@@ -617,6 +623,24 @@ export class WorkTerminalPanel {
         args: entry.commandArgs,
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab context menu handlers
+  // ---------------------------------------------------------------------------
+
+  private _handleCloseAllTerminalsForItem(itemId: string): void {
+    this._terminalManager.closeAllForItem(itemId);
+  }
+
+  private _handleMoveTerminalToItem(sessionId: string, toItemId: string): void {
+    const oldItemId = this._getItemIdForSession(sessionId);
+    this._terminalManager.reassignTerminal(sessionId, toItemId);
+    // Notify webview of session state changes for both old and new items
+    if (oldItemId) {
+      this._postSessionStateForItem(oldItemId);
+    }
+    this._postSessionStateForItem(toItemId);
   }
 
   // ---------------------------------------------------------------------------

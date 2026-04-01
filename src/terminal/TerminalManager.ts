@@ -89,7 +89,7 @@ export class TerminalManager {
   /** Callback to send data to the webview. */
   onOutput?: (sessionId: string, data: string) => void;
   /** Callback when a terminal is created. */
-  onCreated?: (sessionId: string, label: string, sessionType: SessionType) => void;
+  onCreated?: (sessionId: string, label: string, sessionType: SessionType, itemId: string | null) => void;
   /** Callback when a terminal exits/closes. */
   onClosed?: (sessionId: string) => void;
   /** Callback when agent state changes. */
@@ -251,7 +251,7 @@ export class TerminalManager {
     }
 
     this.terminals.set(sessionId, instance);
-    this.onCreated?.(sessionId, label, sessionType);
+    this.onCreated?.(sessionId, label, sessionType, instance.itemId);
 
     return sessionId;
   }
@@ -440,6 +440,16 @@ export class TerminalManager {
     const instance = this.terminals.get(sessionId);
     if (instance) {
       instance.label = label;
+    }
+  }
+
+  /**
+   * Reassign a terminal session to a different work item.
+   */
+  reassignTerminal(sessionId: string, toItemId: string): void {
+    const instance = this.terminals.get(sessionId);
+    if (instance) {
+      instance.itemId = toItemId;
     }
   }
 

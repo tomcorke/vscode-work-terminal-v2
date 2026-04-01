@@ -17,6 +17,8 @@ export type WebviewMessage =
   | { type: "terminalResize"; sessionId: string; cols: number; rows: number }
   | { type: "createTerminal"; terminalType: string; itemId?: string }
   | { type: "closeTerminal"; sessionId: string }
+  | { type: "closeAllTerminalsForItem"; itemId: string }
+  | { type: "moveTerminalToItem"; sessionId: string; toItemId: string }
   | { type: "renameTerminal"; sessionId: string; label: string }
   | { type: "filterChanged"; query: string }
   | { type: "dragDrop"; itemId: string; toColumn: string; index: number }
@@ -68,7 +70,7 @@ export interface ButtonProfileInfo {
 export type ExtensionMessage =
   | { type: "updateItems"; items: WorkItemDTO[]; columns: string[] }
   | { type: "terminalOutput"; sessionId: string; data: string }
-  | { type: "terminalCreated"; sessionId: string; label: string; sessionType: string }
+  | { type: "terminalCreated"; sessionId: string; label: string; sessionType: string; itemId?: string }
   | { type: "terminalClosed"; sessionId: string }
   | { type: "agentStateChanged"; sessionId: string; state: string }
   | {
