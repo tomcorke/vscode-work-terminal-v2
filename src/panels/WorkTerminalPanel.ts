@@ -85,6 +85,7 @@ export class WorkTerminalPanel {
           label: closingInfo.label,
           itemId: closingItemId,
           sessionType: closingInfo.sessionType,
+          agentSessionId: closingInfo.agentSessionId,
         }).catch((err) => {
           console.error("[work-terminal] Session close tracking failed:", err);
         });
@@ -552,14 +553,24 @@ export class WorkTerminalPanel {
     if (!entry) {
       return;
     }
-    this._terminalManager.createTerminal({
-      sessionType: entry.sessionType,
-      itemId: entry.itemId,
-      label: entry.label,
-      cwd: entry.cwd,
-      command: entry.command,
-      args: entry.commandArgs,
-    });
+    if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
+      this._terminalManager.createTerminal({
+        sessionType: entry.sessionType,
+        itemId: entry.itemId,
+        label: entry.label,
+        cwd: entry.cwd,
+        resumeSessionId: entry.claudeSessionId,
+      });
+    } else {
+      this._terminalManager.createTerminal({
+        sessionType: entry.sessionType,
+        itemId: entry.itemId,
+        label: entry.label,
+        cwd: entry.cwd,
+        command: entry.command,
+        args: entry.commandArgs,
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -731,8 +742,7 @@ export class WorkTerminalPanel {
           itemId: entry.itemId,
           label: entry.label,
           cwd: entry.cwd,
-          command: entry.command,
-          args: entry.commandArgs,
+          resumeSessionId: entry.claudeSessionId,
         });
       } else {
         // Relaunch fresh

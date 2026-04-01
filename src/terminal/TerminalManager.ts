@@ -137,6 +137,8 @@ export class TerminalManager {
 
   /**
    * Create a new terminal session.
+   * When `resumeSessionId` is provided, the agent CLI is launched with
+   * `--resume <id>` to continue a previous session.
    */
   createTerminal(options: {
     sessionType: SessionType;
@@ -146,11 +148,12 @@ export class TerminalManager {
     command?: string;
     args?: string[];
     contextPrompt?: string;
+    resumeSessionId?: string;
     cols?: number;
     rows?: number;
   }): string {
     const sessionId = generateSessionId();
-    const agentSessionId = generateSessionId();
+    const agentSessionId = options.resumeSessionId || generateSessionId();
     const cwd = options.cwd || this.getDefaultCwd();
     const sessionType = options.sessionType;
     const label = options.label || this.getLabelForType(sessionType);
@@ -176,6 +179,7 @@ export class TerminalManager {
         settings,
         agentSessionId,
         options.contextPrompt,
+        options.resumeSessionId,
       );
       command = launch.command;
       args = launch.args;
@@ -353,8 +357,9 @@ export class TerminalManager {
       }
     }
 
-    this.terminals.delete(sessionId);
+    // Fire onClosed before deleting so listeners can still query session info
     this.onClosed?.(sessionId);
+    this.terminals.delete(sessionId);
   }
 
   /**
@@ -386,10 +391,10 @@ export class TerminalManager {
   /**
    * Get session info for building session state messages.
    */
-  getSessionInfo(sessionId: string): { label: string; sessionType: SessionType } | undefined {
+  getSessionInfo(sessionId: string): { label: string; sessionType: SessionType; agentSessionId: string } | undefined {
     const instance = this.terminals.get(sessionId);
     if (!instance) return undefined;
-    return { label: instance.label, sessionType: instance.sessionType };
+    return { label: instance.label, sessionType: instance.sessionType, agentSessionId: instance.agentSessionId };
   }
 
   /**

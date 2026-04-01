@@ -101,12 +101,17 @@ export function buildClaudeArgs(
   },
   sessionId: string,
   prompt?: string,
+  resumeSessionId?: string,
 ): string[] {
   const args: string[] = [];
   if (settings.claudeExtraArgs) {
     args.push(...parseExtraArgs(settings.claudeExtraArgs));
   }
-  args.push("--session-id", sessionId);
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
+  } else {
+    args.push("--session-id", sessionId);
+  }
   if (prompt) {
     let fullPrompt = prompt;
     if (settings.additionalAgentContext) {
@@ -123,10 +128,14 @@ export function buildClaudeArgs(
 export function buildCopilotArgs(
   settings: { copilotExtraArgs?: string },
   prompt?: string,
+  resumeSessionId?: string,
 ): string[] {
   const args: string[] = [];
   if (settings.copilotExtraArgs) {
     args.push(...parseExtraArgs(settings.copilotExtraArgs));
+  }
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
   }
   if (prompt) {
     args.push("-i", prompt);
@@ -136,12 +145,15 @@ export function buildCopilotArgs(
 
 /**
  * Build launch command and args for an agent session type.
+ * When `resumeSessionId` is provided, the agent CLI receives `--resume <id>`
+ * instead of a fresh `--session-id`.
  */
 export function buildAgentLaunchArgs(
   sessionType: string,
   settings: Record<string, string | undefined>,
   sessionId: string,
   prompt?: string,
+  resumeSessionId?: string,
 ): { command: string; args: string[] } {
   switch (sessionType) {
     case "claude":
@@ -154,6 +166,7 @@ export function buildAgentLaunchArgs(
         },
         sessionId,
         sessionType === "claude-with-context" ? prompt : undefined,
+        resumeSessionId,
       );
       return { command, args };
     }
@@ -163,6 +176,7 @@ export function buildAgentLaunchArgs(
       const extraArgs = buildCopilotArgs(
         { copilotExtraArgs: settings.copilotExtraArgs },
         sessionType === "copilot-with-context" ? prompt : undefined,
+        resumeSessionId,
       );
       return { command, args: extraArgs };
     }
