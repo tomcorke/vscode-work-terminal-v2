@@ -193,6 +193,27 @@ export class WorkItemService {
     return this.parser.isItemFile(path);
   }
 
+  /**
+   * Backfill a durable UUID for a path-only item via the adapter parser.
+   * Returns the updated item with the new ID, or null if backfill is unsupported/failed.
+   */
+  async backfillItemId(item: WorkItem): Promise<WorkItem | null> {
+    if (!this.parser.backfillItemId) return null;
+    return this.parser.backfillItemId(item);
+  }
+
+  /**
+   * Rekey an item across custom order maps after an ID backfill.
+   */
+  rekeyCustomOrder(oldId: string, newId: string): void {
+    for (const col of Object.keys(this.customOrder)) {
+      this.customOrder[col] = (this.customOrder[col] || []).map((id) =>
+        id === oldId ? newId : id,
+      );
+    }
+    this.persistOrder();
+  }
+
   private persistOrder(): void {
     this.globalState.update(WorkItemService.ORDER_KEY, this.customOrder);
   }

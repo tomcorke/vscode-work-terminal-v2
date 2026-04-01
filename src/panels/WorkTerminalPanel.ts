@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { WebviewMessage, ExtensionMessage, ButtonProfileInfo } from "../webview/messages";
 import { WorkItemService } from "../services/WorkItemService";
-import { FileWatcher } from "../services/FileWatcher";
+import { FileWatcher, type RenameEvent } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
 import { getNonce, expandTilde } from "../core/utils";
 import { dangerConfirm } from "../core/dangerConfirm";
@@ -243,6 +243,7 @@ export class WorkTerminalPanel {
       resolvedBase,
       (p: string) => this._workItemService?.isItemFile(p) ?? false,
       () => this._refreshItems(),
+      (event: RenameEvent) => this._handleFileRenamed(event),
     );
 
     // Initial load
@@ -386,10 +387,32 @@ export class WorkTerminalPanel {
     const items = this._workItemService.toDTOs();
     const columns = this._workItemService.getColumns();
 
+    // Populate FileWatcher UUID cache from loaded items so rename
+    // detection can match deleted files by their frontmatter id.
+    if (this._fileWatcher) {
+      for (const item of this._workItemService.getItems()) {
+        if (item.id && item.id !== item.path) {
+          this._fileWatcher.cacheUuid(item.path, item.id);
+        }
+      }
+    }
+
     this.postMessage({ type: "updateItems", items, columns });
 
     // Notify sidebar of updated items
     WorkTerminalPanel.onItemsUpdated?.(items, columns);
+  }
+
+  /**
+   * Handle a file rename detected by the FileWatcher (shell mv).
+   * Logs the rename for diagnostics. Session associations survive
+   * because they are keyed by UUID, not file path.
+   */
+  private _handleFileRenamed(event: RenameEvent): void {
+    console.log(
+      `[work-terminal] File renamed: ${event.oldPath} -> ${event.newPath}` +
+      (event.uuid ? ` (uuid: ${event.uuid})` : ""),
+    );
   }
 
   /**
@@ -432,6 +455,7 @@ export class WorkTerminalPanel {
       resolvedBase,
       (p: string) => this._workItemService?.isItemFile(p) ?? false,
       () => this._refreshItems(),
+      (event: RenameEvent) => this._handleFileRenamed(event),
     );
 
     this._hookBannerService.updateAcceptSetting(
@@ -687,6 +711,41 @@ export class WorkTerminalPanel {
       preview: true,
     });
     this._detailEditorUri = uri;
+
+    // Backfill a durable UUID when the item is keyed by path only
+    if (item.id === item.path) {
+      this._backfillItemId(item);
+    }
+  }
+
+  /**
+   * Asynchronously backfill a durable UUID for a path-only item.
+   * Updates all internal maps (terminals, custom order, sessions) to the new ID
+   * and refreshes the UI. Fire-and-forget from _handleItemSelected.
+   */
+  private async _backfillItemId(item: import("../core/interfaces").WorkItem): Promise<void> {
+    if (!this._workItemService) return;
+    const updated = await this._workItemService.backfillItemId(item);
+    if (!updated || updated.id === item.id) return;
+
+    const oldId = item.id;
+    const newId = updated.id;
+    console.log(`[work-terminal] Backfilled ID: ${oldId} -> ${newId}`);
+
+    // Rekey terminal sessions
+    this._terminalManager.rekeyItem(oldId, newId);
+
+    // Rekey custom order
+    this._workItemService.rekeyCustomOrder(oldId, newId);
+
+    // Reload items so the new ID propagates to the in-memory list
+    await this._workItemService.loadAll();
+
+    // Persist updated sessions to disk
+    this._sessionManager?.persistCurrentSessions();
+
+    // Refresh the webview with updated item IDs
+    await this._refreshItems();
   }
 
   /**
