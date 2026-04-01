@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import type { WebviewMessage, ExtensionMessage } from "../webview/messages";
+import type { WebviewMessage, ExtensionMessage, ButtonProfileInfo } from "../webview/messages";
 import { WorkItemService } from "../services/WorkItemService";
 import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
@@ -270,6 +270,23 @@ export class WorkTerminalPanel {
   }
 
   // ---------------------------------------------------------------------------
+  // Button profile sync
+  // ---------------------------------------------------------------------------
+
+  private _sendButtonProfiles(): void {
+    if (!this._profileManager) return;
+    const buttonProfiles = this._profileManager.getButtonProfiles();
+    const infos: ButtonProfileInfo[] = buttonProfiles.map((p) => ({
+      profileId: p.id,
+      label: p.button.label || p.name,
+      icon: p.button.icon,
+      color: p.button.color,
+      borderStyle: p.button.borderStyle,
+    }));
+    this.postMessage({ type: "buttonProfiles", profiles: infos });
+  }
+
+  // ---------------------------------------------------------------------------
   // Item refresh
   // ---------------------------------------------------------------------------
 
@@ -338,6 +355,7 @@ export class WorkTerminalPanel {
     switch (message.type) {
       case "ready":
         this._refreshItems();
+        this._sendButtonProfiles();
         break;
       case "itemSelected":
         this._handleItemSelected(message.id);
@@ -419,6 +437,9 @@ export class WorkTerminalPanel {
         break;
       case "contextMenuDelete":
         this._handleDeleteItem(message.itemId);
+        break;
+      case "requestLaunchModal":
+        this.showLaunchModal();
         break;
       default:
         break;
@@ -615,6 +636,7 @@ export class WorkTerminalPanel {
     }
     this.postMessage({ type: "profileSaved", profile });
     this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+    this._sendButtonProfiles();
   }
 
   private async _handleDeleteProfile(profileId: string): Promise<void> {
@@ -622,12 +644,14 @@ export class WorkTerminalPanel {
     await this._profileManager.deleteProfile(profileId);
     this.postMessage({ type: "profileDeleted", profileId });
     this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+    this._sendButtonProfiles();
   }
 
   private async _handleReorderProfiles(orderedIds: string[]): Promise<void> {
     if (!this._profileManager) return;
     await this._profileManager.reorderProfiles(orderedIds);
     this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+    this._sendButtonProfiles();
   }
 
   private _handleLaunchProfile(
@@ -689,6 +713,7 @@ export class WorkTerminalPanel {
     }
 
     this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+    this._sendButtonProfiles();
   }
 
   private async _handleExportProfiles(): Promise<void> {

@@ -13,13 +13,18 @@
     <!-- Left panel: toolbar + list -->
     <div class="wt-left-panel" id="left-panel">
       <div class="wt-toolbar">
+        <button class="wt-toolbar-icon-btn" id="filter-toggle-btn" title="Toggle filter" aria-label="Toggle filter">
+          <span class="codicon codicon-filter"></span>
+        </button>
+        <button class="wt-toolbar-btn" id="new-item-btn">+ New Item</button>
+      </div>
+      <div class="wt-filter-container" id="filter-container" style="display: none;">
         <input
           type="text"
           class="wt-filter-input"
           id="filter-input"
           placeholder="Filter items..."
         />
-        <button class="wt-toolbar-btn" id="new-item-btn">+ New Item</button>
       </div>
       <div class="wt-list-panel" id="list-panel">
         <!-- Card sections rendered by JS -->

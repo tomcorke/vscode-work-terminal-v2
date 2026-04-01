@@ -88,6 +88,32 @@ html, body {
   background: var(--vscode-button-hoverBackground);
 }
 
+.wt-toolbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.wt-toolbar-icon-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-toolbar-icon-btn-active {
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
 /* =============================================================================
    Filter input
    ============================================================================= */
@@ -604,6 +630,19 @@ a.wt-card-source--jira:hover {
 .wt-spawn-btn:hover {
   background: var(--vscode-list-hoverBackground);
   color: var(--vscode-editor-foreground);
+}
+
+.wt-spawn-profile {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wt-spawn-custom {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 /* =============================================================================
