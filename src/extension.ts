@@ -111,6 +111,79 @@ export function activate(context: vscode.ExtensionContext) {
       });
     })
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.togglePanel", async () => {
+      const current = WorkTerminalPanel.current;
+      if (current) {
+        current.dispose();
+        return;
+      }
+      // Create and initialize panel (same as openPanel)
+      const panel = WorkTerminalPanel.createOrShow(context.extensionUri);
+      if (!panel.isServicesInitialized) {
+        await panel.initServices(adapter, context.globalState);
+      }
+      if (!panel.sessionManager) {
+        await panel.initSessionManager(context);
+      }
+      if (!panel.profileManager) {
+        await panel.initProfileManager(context.globalState);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.newWorkItem", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      panel.postMessage({ type: "requestCreateItem" });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.newShell", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      panel.postMessage({ type: "requestCreateTerminal", terminalType: "shell" });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.newClaude", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      panel.postMessage({ type: "requestCreateTerminal", terminalType: "claude" });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.closeActiveTerminal", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) return;
+      panel.postMessage({ type: "requestCloseActiveTerminal" });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.focusFilter", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      panel.postMessage({ type: "focusFilter" });
+    })
+  );
 }
 
 export function deactivate() {

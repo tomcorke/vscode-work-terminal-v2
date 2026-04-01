@@ -57,4 +57,8 @@ export type ExtensionMessage =
   | { type: "themeChanged" }
   | { type: "profileList"; profiles: AgentProfile[] }
   | { type: "profileSaved"; profile: AgentProfile }
-  | { type: "profileDeleted"; profileId: string };
+  | { type: "profileDeleted"; profileId: string }
+  | { type: "focusFilter" }
+  | { type: "requestCreateItem" }
+  | { type: "requestCreateTerminal"; terminalType: string }
+  | { type: "requestCloseActiveTerminal" };

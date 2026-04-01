@@ -4,6 +4,31 @@
   "description": "Work item kanban board with per-item tabbed terminals and AI agent integration",
   "publisher": "tomcorke",
   "version": "0.1.0",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "terminal",
+    "kanban",
+    "work items",
+    "task management",
+    "ai",
+    "claude"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomcorke/vscode-work-terminal-v2"
+  },
+  "license": "MIT",
+  "extensionKind": [
+    "ui"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -16,14 +41,92 @@
       {
         "command": "workTerminal.openPanel",
         "title": "Open Work Terminal",
+        "category": "Work Terminal",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "workTerminal.newWorkItem",
+        "title": "New Work Item",
+        "category": "Work Terminal",
+        "icon": "$(add)"
+      },
+      {
+        "command": "workTerminal.newShell",
+        "title": "New Shell Terminal",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.newClaude",
+        "title": "New Claude Session",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.closeActiveTerminal",
+        "title": "Close Active Terminal",
         "category": "Work Terminal"
       },
       {
         "command": "workTerminal.reopenClosedTerminal",
         "title": "Reopen Closed Terminal",
         "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.manageProfiles",
+        "title": "Manage Agent Profiles",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.togglePanel",
+        "title": "Toggle Work Terminal",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.focusFilter",
+        "title": "Focus Filter Input",
+        "category": "Work Terminal",
+        "icon": "$(search)"
       }
     ],
+    "keybindings": [
+      {
+        "command": "workTerminal.togglePanel",
+        "key": "ctrl+shift+w",
+        "mac": "cmd+shift+w"
+      },
+      {
+        "command": "workTerminal.newWorkItem",
+        "key": "ctrl+shift+n",
+        "mac": "ctrl+shift+n",
+        "when": "workTerminalPanelFocused"
+      },
+      {
+        "command": "workTerminal.newShell",
+        "key": "ctrl+`",
+        "mac": "ctrl+`",
+        "when": "workTerminalPanelFocused"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "workTerminal.openPanel",
+          "group": "navigation",
+          "when": "true"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "workTerminal.focusFilter",
+          "group": "navigation@1",
+          "when": "view == workTerminal.sidebarView"
+        },
+        {
+          "command": "workTerminal.newWorkItem",
+          "group": "navigation@2",
+          "when": "view == workTerminal.sidebarView"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
