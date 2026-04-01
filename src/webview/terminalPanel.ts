@@ -223,6 +223,9 @@ export class TerminalPanel {
       });
     });
 
+    // macOS keyboard shortcut mappings for terminal navigation
+    this.attachTerminalKeyHandler(terminal, sessionId);
+
     const tab: TerminalTab = {
       sessionId,
       label,
@@ -627,6 +630,49 @@ export class TerminalPanel {
   // -------------------------------------------------------------------------
   // Keyboard handling
   // -------------------------------------------------------------------------
+
+  /**
+   * Attach macOS keyboard shortcut handler to a terminal instance.
+   * Intercepts Option/Cmd shortcuts for word/line navigation and sends
+   * the corresponding escape sequences to the PTY via postMessage.
+   */
+  private attachTerminalKeyHandler(terminal: Terminal, sessionId: string): void {
+    const sendInput = (data: string) => {
+      this.postMessage({ type: "terminalInput", sessionId, data });
+    };
+
+    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      if (event.type !== "keydown") return true;
+
+      // Option (Alt) key shortcuts
+      if (event.altKey && !event.metaKey && !event.ctrlKey) {
+        switch (event.key) {
+          case "ArrowLeft":   sendInput("\x1bb");     return false; // word left
+          case "ArrowRight":  sendInput("\x1bf");     return false; // word right
+          case "Backspace":   sendInput("\x1b\x7f");  return false; // delete word backward
+          case "b":           sendInput("\x1bb");     return false; // word backward
+          case "f":           sendInput("\x1bf");     return false; // word forward
+          case "d":           sendInput("\x1bd");     return false; // delete word forward
+        }
+      }
+
+      // Cmd (Meta) key shortcuts
+      if (event.metaKey && !event.altKey && !event.ctrlKey) {
+        switch (event.key) {
+          case "ArrowLeft":   sendInput("\x01");  return false; // line start (Ctrl-A)
+          case "ArrowRight":  sendInput("\x05");  return false; // line end (Ctrl-E)
+        }
+      }
+
+      // Shift+Enter: literal newline (distinct from Enter submit)
+      if (event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey && event.key === "Enter") {
+        sendInput("\n");
+        return false;
+      }
+
+      return true;
+    });
+  }
 
   private handleKeyboard(e: KeyboardEvent): void {
     const isMod = e.metaKey || e.ctrlKey;
