@@ -60,6 +60,10 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       // Profile deleted confirmation - refresh the list via getProfiles
       vscode.postMessage({ type: "getProfiles" });
       break;
+    case "requestCreateItem":
+      // Triggered by keybinding - forward to extension to show input flow
+      postMessage({ type: "createItem", title: "" });
+      break;
     default:
       break;
   }
