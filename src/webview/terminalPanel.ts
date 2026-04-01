@@ -717,18 +717,16 @@ export class TerminalPanel {
     anchorEl.setAttribute("aria-expanded", "true");
 
     const dismissMenu = () => {
-      if (!menu.isConnected) {
-        anchorEl.setAttribute("aria-expanded", "false");
-        this.dismissOverflowMenu = null;
-        return;
-      }
-
-      menu.remove();
       document.removeEventListener("mousedown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
       anchorEl.setAttribute("aria-expanded", "false");
       this.dismissOverflowMenu = null;
-      anchorEl.focus();
+      if (menu.isConnected) {
+        menu.remove();
+      }
+      if (!this.disposed && anchorEl.isConnected) {
+        anchorEl.focus();
+      }
     };
     this.dismissOverflowMenu = dismissMenu;
 
@@ -832,6 +830,7 @@ export class TerminalPanel {
   }
 
   private showTabContextMenu(index: number, x: number, y: number): void {
+    this.dismissOverflowMenu?.();
     const existing = document.querySelector(".wt-context-menu");
     if (existing) existing.remove();
 
@@ -1320,6 +1319,7 @@ export class TerminalPanel {
 
   dispose(): void {
     this.disposed = true;
+    this.dismissOverflowMenu?.();
     this.cancelPendingTabSwitchFrame();
     this.resizeObserver.disconnect();
     this.tabBarResizeObserver?.disconnect();
