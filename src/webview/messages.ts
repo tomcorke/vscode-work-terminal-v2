@@ -40,6 +40,7 @@ export type WebviewMessage =
   | { type: "requestLaunchModal" }
   | { type: "resumeItem"; itemId: string }
   | { type: "installHooks" }
+  | { type: "removeHooks" }
   | { type: "dismissHookBanner" };
 
 // ---- Extension -> Webview ----

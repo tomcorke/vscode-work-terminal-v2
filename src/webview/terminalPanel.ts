@@ -161,6 +161,7 @@ export class TerminalPanel {
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
   private hookBannerEl: HTMLElement | null = null;
+  private hookStatusEl: HTMLElement | null = null;
 
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
@@ -982,12 +983,55 @@ export class TerminalPanel {
   }
 
   // -------------------------------------------------------------------------
+  // Hook status indicator
+  // -------------------------------------------------------------------------
+
+  updateHookStatus(installed: boolean): void {
+    if (!installed) {
+      if (this.hookStatusEl) {
+        this.hookStatusEl.remove();
+        this.hookStatusEl = null;
+      }
+      return;
+    }
+
+    if (!this.hookStatusEl) {
+      this.hookStatusEl = document.createElement("div");
+      this.hookStatusEl.className = "wt-hook-status-bar";
+      this.terminalWrapperEl.parentElement!.insertBefore(
+        this.hookStatusEl,
+        this.terminalWrapperEl,
+      );
+    }
+
+    this.hookStatusEl.innerHTML = "";
+
+    const icon = document.createElement("span");
+    icon.className = "codicon codicon-check wt-hook-status-icon";
+    this.hookStatusEl.appendChild(icon);
+
+    const text = document.createElement("span");
+    text.className = "wt-hook-status-text";
+    text.textContent = "Claude resume hooks configured";
+    this.hookStatusEl.appendChild(text);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "wt-hook-status-remove-btn";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      this.postMessage({ type: "removeHooks" });
+    });
+    this.hookStatusEl.appendChild(removeBtn);
+  }
+
+  // -------------------------------------------------------------------------
   // Cleanup
   // -------------------------------------------------------------------------
 
   dispose(): void {
     this.resizeObserver.disconnect();
     this.hookBannerEl?.remove();
+    this.hookStatusEl?.remove();
     for (const tab of this.tabs) {
       tab.webglAddon?.dispose();
       tab.terminal.dispose();

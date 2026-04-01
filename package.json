@@ -102,6 +102,21 @@
         "command": "workTerminal.copyDiagnostics",
         "title": "Copy Session Diagnostics",
         "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.hookStatus",
+        "title": "Claude Hooks: Show Status",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.installHooks",
+        "title": "Claude Hooks: Install",
+        "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.removeHooks",
+        "title": "Claude Hooks: Remove",
+        "category": "Work Terminal"
       }
     ],
     "keybindings": [

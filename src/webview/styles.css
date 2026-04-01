@@ -1526,3 +1526,48 @@ a.wt-card-source--jira:hover {
 .wt-hook-banner-dismiss:hover {
   color: var(--vscode-editor-foreground);
 }
+
+/* =============================================================================
+   Hook status bar (shown when hooks are installed)
+   ============================================================================= */
+
+.wt-hook-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--vscode-editorInfo-background, rgba(0, 120, 200, 0.08));
+  border-bottom: 1px solid var(--vscode-editorInfo-foreground, rgba(0, 120, 200, 0.3));
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.wt-hook-status-icon {
+  color: var(--vscode-charts-green, #388a34);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.wt-hook-status-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wt-hook-status-remove-btn {
+  padding: 1px 8px;
+  font-size: 10px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-focusBorder));
+  border-radius: 2px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wt-hook-status-remove-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-errorForeground, #f44747);
+  border-color: var(--vscode-errorForeground, #f44747);
+}

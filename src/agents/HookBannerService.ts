@@ -60,6 +60,15 @@ export class HookBannerService {
   }
 
   /**
+   * Force an immediate re-check (e.g. after install/remove).
+   * Clears any manual dismissal so the banner can reappear if hooks were removed.
+   */
+  recheckNow(): void {
+    this._dismissed = false;
+    this._check();
+  }
+
+  /**
    * Stop polling. Call on dispose.
    */
   dispose(): void {

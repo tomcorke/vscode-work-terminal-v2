@@ -94,6 +94,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "hookBannerState":
       terminalPanel?.updateHookBanner(message.visible, message.message);
       break;
+    case "hookStatusChanged":
+      terminalPanel?.updateHookStatus(message.installed);
+      break;
     case "focusFilter":
       showFilter();
       break;
