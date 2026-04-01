@@ -2,7 +2,8 @@ import type { WebviewApi } from "../types/vscode";
 import type { WebviewMessage, ExtensionMessage } from "./messages";
 import { ListPanel } from "./listPanel";
 import { TerminalPanel } from "./terminalPanel";
-import { renderProfileList } from "./profileManager";
+import { renderProfileList, renderProfileEditor } from "./profileManager";
+import type { AgentProfile, AgentType, ParamPassMode, ProfileIcon, BorderStyle } from "../core/agents/types";
 
 const vscode: WebviewApi = acquireVsCodeApi();
 
@@ -73,8 +74,10 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
 // Profile management
 // ---------------------------------------------------------------------------
 
-function handleProfileList(message: Extract<ExtensionMessage, { type: "profileList" }>): void {
-  // Render profiles into a dialog overlay
+/** Cached profile list from the most recent profileList message. */
+let cachedProfiles: AgentProfile[] = [];
+
+function getOrCreateOverlay(): HTMLElement {
   let overlay = document.getElementById("profile-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
@@ -85,10 +88,109 @@ function handleProfileList(message: Extract<ExtensionMessage, { type: "profileLi
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay!.remove();
     });
+    overlay.addEventListener("click", handleProfileAction);
     document.body.appendChild(overlay);
   }
-  const html = renderProfileList(message.profiles);
-  overlay.innerHTML = `<div style="background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;">${html}</div>`;
+  return overlay;
+}
+
+function setOverlayContent(overlay: HTMLElement, html: string): void {
+  overlay.innerHTML =
+    `<div style="background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;">${html}</div>`;
+}
+
+function handleProfileList(message: Extract<ExtensionMessage, { type: "profileList" }>): void {
+  cachedProfiles = message.profiles;
+  const overlay = getOrCreateOverlay();
+  setOverlayContent(overlay, renderProfileList(message.profiles));
+}
+
+function handleProfileAction(e: Event): void {
+  const target = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
+  if (!target) return;
+
+  const action = target.dataset.action;
+  const profileId = target.dataset.profileId;
+
+  switch (action) {
+    case "editProfile": {
+      if (!profileId) break;
+      const profile = cachedProfiles.find((p) => p.id === profileId);
+      if (!profile) break;
+      const overlay = getOrCreateOverlay();
+      setOverlayContent(overlay, renderProfileEditor(profile));
+      break;
+    }
+    case "saveProfile": {
+      const editor = document.querySelector<HTMLElement>(".wt-profile-editor");
+      if (!editor) break;
+      const profile = collectProfileFromForm(editor);
+      postMessage({ type: "saveProfile", profile });
+      break;
+    }
+    case "cancelEdit": {
+      // Return to the profile list
+      postMessage({ type: "getProfiles" });
+      break;
+    }
+    case "deleteProfile": {
+      if (!profileId) break;
+      postMessage({ type: "deleteProfile", profileId });
+      break;
+    }
+    case "moveProfileUp": {
+      if (!profileId) break;
+      postMessage({ type: "moveProfileUp", profileId });
+      break;
+    }
+    case "moveProfileDown": {
+      if (!profileId) break;
+      postMessage({ type: "moveProfileDown", profileId });
+      break;
+    }
+    case "importProfiles": {
+      postMessage({ type: "importProfiles" });
+      break;
+    }
+    case "exportProfiles": {
+      postMessage({ type: "exportProfiles" });
+      break;
+    }
+  }
+}
+
+function collectProfileFromForm(editor: HTMLElement): AgentProfile {
+  const val = (name: string): string => {
+    const el = editor.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(`[name="${name}"]`);
+    return el?.value ?? "";
+  };
+  const checked = (name: string): boolean => {
+    const el = editor.querySelector<HTMLInputElement>(`[name="${name}"]`);
+    return el?.checked ?? false;
+  };
+
+  const existingId = editor.dataset.profileId || "";
+  const id = existingId || crypto.randomUUID();
+
+  return {
+    id,
+    name: val("name"),
+    agentType: val("agentType") as AgentType,
+    command: val("command"),
+    defaultCwd: val("defaultCwd"),
+    arguments: val("arguments"),
+    contextPrompt: val("contextPrompt"),
+    useContext: checked("useContext"),
+    paramPassMode: (val("paramPassMode") || "launch-only") as ParamPassMode,
+    button: {
+      enabled: checked("buttonEnabled"),
+      label: val("buttonLabel"),
+      icon: (val("buttonIcon") || undefined) as ProfileIcon | undefined,
+      borderStyle: (val("buttonBorderStyle") || "solid") as BorderStyle,
+      color: val("buttonColor") || undefined,
+    },
+    sortOrder: cachedProfiles.find((p) => p.id === existingId)?.sortOrder ?? cachedProfiles.length,
+  };
 }
 
 // ---------------------------------------------------------------------------
