@@ -411,6 +411,15 @@ export class WorkTerminalPanel {
       case "moveProfileDown":
         this._handleMoveProfile(message.profileId, "down");
         break;
+      case "copyToClipboard":
+        vscode.env.clipboard.writeText(message.text);
+        break;
+      case "contextMenuMove":
+        this._handleMoveItem(message.itemId, message.toColumn, 0);
+        break;
+      case "contextMenuDelete":
+        this._handleDeleteItem(message.itemId);
+        break;
       default:
         break;
     }

@@ -187,22 +187,54 @@ export class ListPanel {
     const metaRow = document.createElement("div");
     metaRow.className = "wt-card-meta";
 
-    // Source badge
-    if (item.source && item.source !== "prompt") {
+    // Jira key as clickable link
+    if (item.jiraKey) {
+      if (item.jiraBaseUrl) {
+        const jiraLink = document.createElement("a");
+        jiraLink.className = "wt-card-source wt-card-source--jira";
+        jiraLink.textContent = item.jiraKey;
+        jiraLink.href = `${item.jiraBaseUrl}/${item.jiraKey}`;
+        jiraLink.title = `Open ${item.jiraKey} in Jira`;
+        jiraLink.addEventListener("click", (e) => {
+          e.stopPropagation();
+        });
+        metaRow.appendChild(jiraLink);
+      } else {
+        const jiraBadge = document.createElement("span");
+        jiraBadge.className = "wt-card-source wt-card-source--jira";
+        jiraBadge.textContent = item.jiraKey;
+        metaRow.appendChild(jiraBadge);
+      }
+    } else if (item.source && item.source !== "prompt") {
       const sourceBadge = document.createElement("span");
       sourceBadge.className = "wt-card-source";
       sourceBadge.textContent = item.source.toUpperCase();
       metaRow.appendChild(sourceBadge);
     }
 
-    // Priority score
+    // Priority score with color coding
     if (item.meta?.score) {
       const score = parseInt(item.meta.score, 10);
       if (score > 0) {
+        let scoreClass = "wt-score-low";
+        if (score >= 60) scoreClass = "wt-score-high";
+        else if (score >= 30) scoreClass = "wt-score-medium";
+
         const scoreBadge = document.createElement("span");
-        scoreBadge.className = "wt-card-score";
+        scoreBadge.className = `wt-card-score ${scoreClass}`;
         scoreBadge.textContent = String(score);
         metaRow.appendChild(scoreBadge);
+      }
+    }
+
+    // Goal tags (max 2)
+    if (item.goals?.length) {
+      for (const goal of item.goals.slice(0, 2)) {
+        const goalEl = document.createElement("span");
+        goalEl.className = "wt-card-goal";
+        goalEl.textContent = goal.replace(/-/g, " ");
+        goalEl.title = goal;
+        metaRow.appendChild(goalEl);
       }
     }
 
@@ -217,6 +249,17 @@ export class ListPanel {
       }
     }
 
+    // Blocker badge
+    if (item.hasBlocker) {
+      const blockerBadge = document.createElement("span");
+      blockerBadge.className = "wt-card-blocker";
+      blockerBadge.textContent = "BLOCKED";
+      if (item.blockerContext) {
+        blockerBadge.title = item.blockerContext;
+      }
+      metaRow.appendChild(blockerBadge);
+    }
+
     card.appendChild(metaRow);
 
     // Session badge
@@ -225,13 +268,94 @@ export class ListPanel {
     // Click to select
     card.addEventListener("click", (e) => {
       if ((e.target as HTMLElement).closest(".wt-card-actions")) return;
+      if ((e.target as HTMLElement).closest("a")) return;
       this.selectItem(item.id);
+    });
+
+    // Context menu
+    card.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.showCardContextMenu(item, e.clientX, e.clientY);
     });
 
     // Drag source
     this.setupDragSource(card, item);
 
     return card;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Card context menu
+  // ---------------------------------------------------------------------------
+
+  private showCardContextMenu(item: WorkItemDTO, x: number, y: number): void {
+    const existing = document.querySelector(".wt-context-menu");
+    if (existing) existing.remove();
+
+    const menu = document.createElement("div");
+    menu.className = "wt-context-menu";
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    const menuItems: Array<{ label: string; action: () => void; separator?: boolean }> = [];
+
+    // Move to columns
+    for (const col of this.state.columns) {
+      if (col === item.column) continue;
+      menuItems.push({
+        label: `Move to ${this.formatColumnLabel(col)}`,
+        action: () => {
+          this.vscode.postMessage({ type: "contextMenuMove", itemId: item.id, toColumn: col });
+        },
+      });
+    }
+
+    menuItems.push({ label: "", action: () => {}, separator: true });
+
+    menuItems.push({
+      label: "Copy Name",
+      action: () => {
+        this.vscode.postMessage({ type: "copyToClipboard", text: item.title });
+      },
+    });
+
+    menuItems.push({ label: "", action: () => {}, separator: true });
+
+    menuItems.push({
+      label: "Delete",
+      action: () => {
+        this.vscode.postMessage({ type: "contextMenuDelete", itemId: item.id });
+      },
+    });
+
+    for (const mi of menuItems) {
+      if (mi.separator) {
+        const sep = document.createElement("div");
+        sep.className = "wt-context-menu-separator";
+        menu.appendChild(sep);
+        continue;
+      }
+      const itemEl = document.createElement("div");
+      itemEl.className = "wt-context-menu-item";
+      itemEl.textContent = mi.label;
+      itemEl.addEventListener("click", () => {
+        menu.remove();
+        mi.action();
+      });
+      menu.appendChild(itemEl);
+    }
+
+    document.body.appendChild(menu);
+
+    const dismiss = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        menu.remove();
+        document.removeEventListener("mousedown", dismiss);
+      }
+    };
+    requestAnimationFrame(() => {
+      document.addEventListener("mousedown", dismiss);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -319,6 +443,8 @@ export class ListPanel {
         item.title,
         item.source || "",
         item.meta?.tags || "",
+        item.jiraKey || "",
+        ...(item.goals || []),
       ].join(" ").toLowerCase();
 
       card.style.display = searchable.includes(term) ? "" : "none";
