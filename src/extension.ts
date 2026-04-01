@@ -105,6 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("workTerminal.togglePanel", async () => {
       const current = WorkTerminalPanel.current;
       if (current) {
+        if (!(await WorkTerminalPanel.confirmClose())) return;
         current.dispose();
         return;
       }
@@ -188,6 +189,8 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate(): Promise<void> {
   const panel = WorkTerminalPanel.current;
   if (panel) {
+    // Best-effort: persist sessions before teardown.
+    // Cannot show UI here - VS Code is already shutting down.
     panel.dispose();
   }
 }

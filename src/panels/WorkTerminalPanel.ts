@@ -55,6 +55,9 @@ export class WorkTerminalPanel {
     );
 
     this._panel.onDidDispose(() => {
+      // Panel is already gone (user clicked X or VS Code closed it).
+      // Best-effort: persist sessions before tearing down.
+      this._teardown();
       WorkTerminalPanel.current = undefined;
     });
 
@@ -212,7 +215,40 @@ export class WorkTerminalPanel {
     }
   }
 
-  dispose(): void {
+  /**
+   * Whether there are active terminal sessions running.
+   */
+  get hasActiveSessions(): boolean {
+    return this._terminalManager.activeSessionCount > 0;
+  }
+
+  /**
+   * Show a confirmation dialog if active sessions exist and keepSessionsAlive
+   * is disabled. Returns true if the caller should proceed with closing.
+   */
+  static async confirmClose(): Promise<boolean> {
+    const panel = WorkTerminalPanel.current;
+    if (!panel || !panel.hasActiveSessions) return true;
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const keepAlive = config.get<boolean>("keepSessionsAlive", true);
+    if (keepAlive) return true;
+
+    const count = panel._terminalManager.activeSessionCount;
+    const label = count === 1 ? "1 active session" : `${count} active sessions`;
+    const answer = await vscode.window.showWarningMessage(
+      `Work Terminal has ${label}. Close anyway?`,
+      { modal: true },
+      "Close",
+    );
+    return answer === "Close";
+  }
+
+  /**
+   * Internal cleanup shared by dispose() and onDidDispose.
+   * Persists sessions and tears down watchers/trackers.
+   */
+  private _teardown(): void {
     if (this._disposed) return;
     this._disposed = true;
     this._sessionManager?.deactivate().catch((err) => {
@@ -230,7 +266,10 @@ export class WorkTerminalPanel {
     if (!keepAlive) {
       this._terminalManager.disposeAll();
     }
+  }
 
+  dispose(): void {
+    this._teardown();
     this._panel.dispose();
   }
 

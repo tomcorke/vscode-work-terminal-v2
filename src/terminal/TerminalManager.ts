@@ -454,6 +454,13 @@ export class TerminalManager {
   }
 
   /**
+   * Get the number of active terminal sessions.
+   */
+  get activeSessionCount(): number {
+    return this.terminals.size;
+  }
+
+  /**
    * Dispose all terminals.
    */
   disposeAll(): void {
