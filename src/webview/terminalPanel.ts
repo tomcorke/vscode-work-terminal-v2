@@ -138,6 +138,7 @@ export class TerminalPanel {
   private resizeObserver: ResizeObserver;
   private tabBarResizeObserver: ResizeObserver | null = null;
   private tabBarOverflowFrame: number | null = null;
+  private overflowMenuFrame: number | null = null;
   private dismissOverflowMenu: (() => void) | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
@@ -717,6 +718,10 @@ export class TerminalPanel {
     anchorEl.setAttribute("aria-expanded", "true");
 
     const dismissMenu = () => {
+      if (this.overflowMenuFrame !== null) {
+        cancelAnimationFrame(this.overflowMenuFrame);
+        this.overflowMenuFrame = null;
+      }
       document.removeEventListener("mousedown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
       anchorEl.setAttribute("aria-expanded", "false");
@@ -822,7 +827,11 @@ export class TerminalPanel {
       }
     };
 
-    requestAnimationFrame(() => {
+    this.overflowMenuFrame = requestAnimationFrame(() => {
+      this.overflowMenuFrame = null;
+      if (this.dismissOverflowMenu !== dismissMenu || this.disposed || !menu.isConnected) {
+        return;
+      }
       document.addEventListener("mousedown", dismiss);
       document.addEventListener("keydown", onKeyDown);
       focusItem(0);
