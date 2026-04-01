@@ -366,11 +366,7 @@ export class TerminalPanel {
 
       if (tab.sessionType !== "shell" && tab.agentState !== "inactive") {
         const dot = document.createElement("span");
-        dot.style.width = "6px";
-        dot.style.height = "6px";
-        dot.style.borderRadius = "50%";
-        dot.style.backgroundColor = STATE_COLORS[tab.agentState] || "transparent";
-        dot.style.flexShrink = "0";
+        dot.className = `wt-tab-state-dot wt-tab-state-dot--${tab.agentState}`;
         dot.title = tab.agentState;
         tabEl.appendChild(dot);
       }

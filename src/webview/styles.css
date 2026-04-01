@@ -472,6 +472,8 @@ a.wt-card-source--jira:hover {
    Agent state indicators on cards
    ============================================================================= */
 
+/* --- Active: rotating arc spinner on session badges (3.2s) --- */
+
 .wt-agent-active .wt-session-badge {
   position: relative;
   overflow: visible;
@@ -486,13 +488,35 @@ a.wt-card-source--jira:hover {
   background: conic-gradient(#38a169 0deg, #38a169 90deg, transparent 90deg, transparent 360deg);
   mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
-  animation: wt-arc-spin 1.2s linear infinite;
+  animation: wt-spin 3.2s linear infinite;
   z-index: -1;
 }
 
-@keyframes wt-arc-spin {
+@keyframes wt-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* --- Waiting: pulsing glow on the card wrapper (2.5s) --- */
+
+.wt-agent-waiting {
+  animation: wt-waiting-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes wt-waiting-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(229, 62, 62, 0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(229, 62, 62, 0.35);
+  }
+}
+
+/* --- Idle: badge grayscale filter (applied after delay) --- */
+
+.wt-agent-idle .wt-session-badge {
+  filter: grayscale(0.7);
+  transition: filter 2s ease;
 }
 
 /* =============================================================================
@@ -601,6 +625,34 @@ a.wt-card-source--jira:hover {
 
 .wt-tab-close:hover {
   color: var(--vscode-editor-foreground);
+}
+
+/* Tab agent state dot */
+.wt-tab-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wt-tab-state-dot--active {
+  background-color: #38a169;
+  animation: wt-spin 3.2s linear infinite;
+}
+
+.wt-tab-state-dot--waiting {
+  background-color: #e53e3e;
+  animation: wt-tab-dot-pulse 2.5s ease-in-out infinite;
+}
+
+.wt-tab-state-dot--idle {
+  background-color: #d69e2e;
+  filter: grayscale(0.7);
+}
+
+@keyframes wt-tab-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 .wt-tab-dragging {
