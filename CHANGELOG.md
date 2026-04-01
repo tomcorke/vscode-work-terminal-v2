@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - One-time migration in AgentProfileManager.load() that copies non-default values from deprecated global settings into existing agent profiles
+- Danger confirmation modal for destructive operations (Delete Item, Done & Close Sessions) using VS Code's native warning dialog
 
 ## [0.1.0] - 2026-04-01
 
