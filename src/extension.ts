@@ -93,7 +93,8 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("workTerminal.selectItem", (itemId: string) => {
+    vscode.commands.registerCommand("workTerminal.selectItem", async (itemId: string) => {
+      await vscode.commands.executeCommand("workTerminal.openPanel");
       const panel = WorkTerminalPanel.current;
       if (panel) {
         panel.postMessage({ type: "selectItem", itemId });

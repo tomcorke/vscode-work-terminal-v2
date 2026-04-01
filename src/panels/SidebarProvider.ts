@@ -49,18 +49,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           this._pendingMessages = [];
           break;
         case "itemSelected":
-          // Open the panel and focus the terminal for this item
-          (async () => {
-            await vscode.commands.executeCommand("workTerminal.openPanel");
-            await vscode.commands.executeCommand(
-              "workTerminal.selectItem",
-              message.id,
-            );
-          })();
+          this._selectItemInPanelSafely(message.id);
           break;
         case "createItem":
           // Forward to panel
-          this._forwardToPanel(message);
+          this._forwardToPanelSafely(message);
           break;
         case "contextMenuMove":
         case "contextMenuDelete":
@@ -70,7 +63,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case "copyToClipboard":
         case "resumeItem":
           // Forward these messages to the panel's message handler
-          this._forwardToPanel(message);
+          this._forwardToPanelSafely(message);
           break;
       }
     });
@@ -93,6 +86,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     await vscode.commands.executeCommand("workTerminal.openPanel");
 
     this.onForwardToPanel(message);
+  }
+
+  private _forwardToPanelSafely(message: WebviewMessage): void {
+    void this._forwardToPanel(message).catch((error: unknown) => {
+      console.error("[work-terminal] Failed to forward sidebar message to panel", error);
+    });
+  }
+
+  private _selectItemInPanelSafely(itemId: string): void {
+    void vscode.commands.executeCommand("workTerminal.selectItem", itemId).catch((error: unknown) => {
+      console.error("[work-terminal] Failed to select sidebar item in panel", error);
+    });
   }
 
   /**

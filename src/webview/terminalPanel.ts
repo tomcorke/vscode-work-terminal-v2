@@ -152,10 +152,13 @@ export class TerminalPanel {
   private tabs: TerminalTab[] = [];
   private activeIndex = -1;
   private postMessage: (msg: WebviewMessage) => void;
+  private selectedItemId: string | null = null;
   private tabsContainerEl: HTMLElement;
   private tabButtonsEl: HTMLElement;
   private terminalWrapperEl: HTMLElement;
   private emptyStateEl: HTMLElement;
+  private taskTitleEl: HTMLElement;
+  private taskTitleTextEl: HTMLElement;
   private resizeObserver: ResizeObserver;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
@@ -170,6 +173,8 @@ export class TerminalPanel {
     this.tabButtonsEl = document.getElementById("tab-buttons")!;
     this.terminalWrapperEl = document.getElementById("terminal-wrapper")!;
     this.emptyStateEl = document.getElementById("empty-state")!;
+    this.taskTitleEl = document.getElementById("task-title")!;
+    this.taskTitleTextEl = document.getElementById("task-title-text")!;
 
     injectXtermCss();
     this.renderSpawnButtons();
@@ -198,6 +203,12 @@ export class TerminalPanel {
   getActiveSessionId(): string | null {
     const tab = this.tabs[this.activeIndex];
     return tab?.sessionId ?? null;
+  }
+
+  selectItem(itemId: string): void {
+    this.selectedItemId = itemId;
+    this.focusSelectedItem();
+    this.syncSelectedItemUi();
   }
 
   // -------------------------------------------------------------------------
@@ -343,6 +354,8 @@ export class TerminalPanel {
     const tab = this.tabs[index];
     tab.containerEl.classList.remove("hidden");
     this.activeIndex = index;
+    this.selectedItemId = tab.itemId;
+    this.syncSelectedItemUi();
 
     requestAnimationFrame(() => {
       try {
@@ -442,6 +455,7 @@ export class TerminalPanel {
    */
   updateWorkItems(items: WorkItemDTO[]): void {
     this.workItems = items;
+    this.syncSelectedItemUi();
   }
 
   /**
@@ -461,7 +475,11 @@ export class TerminalPanel {
     shellBtn.className = "wt-spawn-btn";
     shellBtn.textContent = "+ Shell";
     shellBtn.addEventListener("click", () => {
-      this.postMessage({ type: "createTerminal", terminalType: "shell" });
+      this.postMessage({
+        type: "createTerminal",
+        terminalType: "shell",
+        itemId: this.selectedItemId ?? undefined,
+      });
     });
     this.tabButtonsEl.appendChild(shellBtn);
 
@@ -494,7 +512,11 @@ export class TerminalPanel {
       btn.appendChild(document.createTextNode(profile.label));
       btn.title = `Launch ${profile.label}`;
       btn.addEventListener("click", () => {
-        this.postMessage({ type: "launchProfile", profileId: profile.profileId });
+        this.postMessage({
+          type: "launchProfile",
+          profileId: profile.profileId,
+          itemId: this.selectedItemId ?? undefined,
+        });
       });
       this.tabButtonsEl.appendChild(btn);
     }
@@ -506,17 +528,64 @@ export class TerminalPanel {
     launchBtn.title = "Launch profile";
     launchBtn.setAttribute("aria-label", "Launch profile");
     launchBtn.addEventListener("click", () => {
-      this.postMessage({ type: "requestLaunchModal" });
+      this.postMessage({
+        type: "requestLaunchModal",
+        itemId: this.selectedItemId ?? undefined,
+      });
     });
     this.tabButtonsEl.appendChild(launchBtn);
   }
 
   private updateEmptyState(): void {
-    if (this.tabs.length > 0) {
+    if (this.activeIndex >= 0 && this.activeIndex < this.tabs.length) {
       this.emptyStateEl.style.display = "none";
     } else {
       this.emptyStateEl.style.display = "flex";
     }
+  }
+
+  private focusSelectedItem(): void {
+    if (!this.selectedItemId) {
+      this.clearActiveTerminal();
+      return;
+    }
+
+    const tabIndex = this.tabs.findIndex((tab) => tab.itemId === this.selectedItemId);
+    if (tabIndex >= 0) {
+      this.switchToTab(tabIndex);
+      this.renderTabBar();
+      return;
+    }
+
+    this.clearActiveTerminal();
+  }
+
+  private clearActiveTerminal(): void {
+    for (const tab of this.tabs) {
+      tab.containerEl.classList.add("hidden");
+    }
+    this.activeIndex = -1;
+    this.renderTabBar();
+    this.updateEmptyState();
+  }
+
+  private syncSelectedItemUi(): void {
+    const selectedItem = this.selectedItemId
+      ? this.workItems.find((item) => item.id === this.selectedItemId) ?? null
+      : null;
+
+    if (!selectedItem) {
+      this.taskTitleEl.style.display = "none";
+      this.taskTitleTextEl.textContent = "";
+      this.emptyStateEl.textContent = "Select an item from the sidebar to begin";
+    } else {
+      this.taskTitleEl.style.display = "block";
+      this.taskTitleTextEl.textContent = selectedItem.title;
+      this.emptyStateEl.textContent = `No terminals for "${selectedItem.title}"`;
+    }
+
+    this.renderSpawnButtons();
+    this.updateEmptyState();
   }
 
   // -------------------------------------------------------------------------
