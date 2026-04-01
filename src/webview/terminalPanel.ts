@@ -160,6 +160,7 @@ export class TerminalPanel {
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
+  private hookBannerEl: HTMLElement | null = null;
 
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
@@ -909,11 +910,64 @@ export class TerminalPanel {
   }
 
   // -------------------------------------------------------------------------
+  // Hook warning banner
+  // -------------------------------------------------------------------------
+
+  updateHookBanner(visible: boolean, message: string): void {
+    if (!visible) {
+      if (this.hookBannerEl) {
+        this.hookBannerEl.remove();
+        this.hookBannerEl = null;
+      }
+      return;
+    }
+
+    if (!this.hookBannerEl) {
+      this.hookBannerEl = document.createElement("div");
+      this.hookBannerEl.className = "wt-hook-banner";
+      // Insert before the terminal wrapper
+      this.terminalWrapperEl.parentElement!.insertBefore(
+        this.hookBannerEl,
+        this.terminalWrapperEl,
+      );
+    }
+
+    this.hookBannerEl.innerHTML = "";
+
+    const icon = document.createElement("span");
+    icon.className = "codicon codicon-warning wt-hook-banner-icon";
+    this.hookBannerEl.appendChild(icon);
+
+    const text = document.createElement("span");
+    text.className = "wt-hook-banner-text";
+    text.textContent = message;
+    this.hookBannerEl.appendChild(text);
+
+    const installBtn = document.createElement("button");
+    installBtn.className = "wt-hook-banner-btn";
+    installBtn.textContent = "Install Hooks";
+    installBtn.addEventListener("click", () => {
+      this.postMessage({ type: "installHooks" });
+    });
+    this.hookBannerEl.appendChild(installBtn);
+
+    const dismissBtn = document.createElement("button");
+    dismissBtn.className = "wt-hook-banner-dismiss";
+    dismissBtn.textContent = "\u00d7";
+    dismissBtn.title = "Dismiss";
+    dismissBtn.addEventListener("click", () => {
+      this.postMessage({ type: "dismissHookBanner" });
+    });
+    this.hookBannerEl.appendChild(dismissBtn);
+  }
+
+  // -------------------------------------------------------------------------
   // Cleanup
   // -------------------------------------------------------------------------
 
   dispose(): void {
     this.resizeObserver.disconnect();
+    this.hookBannerEl?.remove();
     for (const tab of this.tabs) {
       tab.webglAddon?.dispose();
       tab.terminal.dispose();

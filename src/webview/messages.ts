@@ -38,7 +38,9 @@ export type WebviewMessage =
   | { type: "doneAndCloseSessions"; itemId: string }
   | { type: "moveToTop"; itemId: string }
   | { type: "requestLaunchModal" }
-  | { type: "resumeItem"; itemId: string };
+  | { type: "resumeItem"; itemId: string }
+  | { type: "installHooks" }
+  | { type: "dismissHookBanner" };
 
 // ---- Extension -> Webview ----
 
@@ -97,4 +99,5 @@ export type ExtensionMessage =
   | { type: "resolvePlaceholder"; placeholderId: string; realId: string }
   | { type: "failPlaceholder"; placeholderId: string }
   | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] }
-  | { type: "resumeItemIds"; itemIds: string[] };
+  | { type: "resumeItemIds"; itemIds: string[] }
+  | { type: "hookBannerState"; visible: boolean; message: string };
