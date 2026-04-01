@@ -163,7 +163,7 @@ export class TerminalPanel {
     this.terminalWrapperEl.appendChild(containerEl);
 
     const terminal = new Terminal({
-      fontFamily: "var(--vscode-editor-font-family, 'Menlo, Monaco, monospace')",
+      fontFamily: "Menlo, Monaco, 'Courier New', monospace",
       fontSize: 13,
       lineHeight: 1.2,
       cursorBlink: true,

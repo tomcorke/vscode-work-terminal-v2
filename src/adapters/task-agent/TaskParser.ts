@@ -326,7 +326,6 @@ export class TaskParser implements WorkItemParser {
   async loadAll(): Promise<WorkItem[]> {
     const items: WorkItem[] = [];
     const folders = ["priority", "todo", "active", "archive"];
-
     for (const folder of folders) {
       const folderPath = `${this.basePath}/${folder}`;
       const folderUri = vscode.Uri.file(folderPath);

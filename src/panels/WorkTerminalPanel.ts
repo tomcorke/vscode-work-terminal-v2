@@ -168,14 +168,17 @@ export class WorkTerminalPanel {
     const config = vscode.workspace.getConfiguration("workTerminal");
     const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
 
-    // Resolve base path against workspace
+    // Resolve base path against workspace (only if relative)
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const resolvedBase = workspaceFolder
-      ? path.join(workspaceFolder.uri.fsPath, basePath)
-      : basePath;
+    const resolvedBase = path.isAbsolute(basePath)
+      ? basePath
+      : workspaceFolder
+        ? path.join(workspaceFolder.uri.fsPath, basePath)
+        : basePath;
+    console.log("[work-terminal] initServices: resolvedBase =", resolvedBase);
 
     const settings: Record<string, unknown> = {
-      "adapter.taskBasePath": basePath,
+      "adapter.taskBasePath": resolvedBase,
     };
 
     if (adapter.onLoad) {
@@ -285,12 +288,14 @@ export class WorkTerminalPanel {
     const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const resolvedBase = workspaceFolder
-      ? path.join(workspaceFolder.uri.fsPath, basePath)
-      : basePath;
+    const resolvedBase = path.isAbsolute(basePath)
+      ? basePath
+      : workspaceFolder
+        ? path.join(workspaceFolder.uri.fsPath, basePath)
+        : basePath;
 
     const settings: Record<string, unknown> = {
-      "adapter.taskBasePath": basePath,
+      "adapter.taskBasePath": resolvedBase,
       "adapter.jiraBaseUrl": config.get<string>("jiraBaseUrl", ""),
     };
 

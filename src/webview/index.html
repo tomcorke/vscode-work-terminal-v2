@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}'; font-src {{cspSource}}; connect-src 'self' blob:;">
+    content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}'; font-src {{cspSource}} data:; connect-src 'self' blob:; img-src {{cspSource}} blob: data:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{styleUri}}">
   <title>Work Terminal</title>

@@ -192,6 +192,8 @@ export class TerminalManager {
       instance.stateDetector = detector;
     }
 
+    console.log(`[TerminalManager] Spawning: ${command} ${args.join(" ")} (cwd: ${cwd})`);
+
     if (nodePty) {
       // Use node-pty for proper PTY support
       try {
@@ -212,7 +214,8 @@ export class TerminalManager {
         });
         instance.disposables.push(dataDisposable);
 
-        const exitDisposable = pty.onExit(() => {
+        const exitDisposable = pty.onExit((e) => {
+          console.log(`[TerminalManager] Process exited: ${sessionId} (code: ${e.exitCode}, signal: ${e.signal})`);
           if (instance.disposed) return;
           this.destroyTerminal(sessionId);
         });
