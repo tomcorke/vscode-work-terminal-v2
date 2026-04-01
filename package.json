@@ -157,6 +157,66 @@
           "type": "string",
           "default": "",
           "description": "Browse URL used to turn Jira keys into clickable external links (e.g. https://your-org.atlassian.net/browse)"
+        },
+        "workTerminal.defaultShell": {
+          "type": "string",
+          "default": "",
+          "description": "Default shell command. Leave empty to use $SHELL (or COMSPEC on Windows)."
+        },
+        "workTerminal.defaultTerminalCwd": {
+          "type": "string",
+          "default": "~",
+          "description": "Default working directory for new terminals. Use ~ for home directory."
+        },
+        "workTerminal.keepSessionsAlive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep terminal sessions alive when the panel is closed. When false, terminals are killed on panel dispose."
+        },
+        "workTerminal.exposeDebugApi": {
+          "type": "boolean",
+          "default": false,
+          "description": "Expose a debug API for development and troubleshooting."
+        },
+        "workTerminal.claudeCommand": {
+          "type": "string",
+          "default": "claude",
+          "description": "Command used to launch Claude CLI sessions."
+        },
+        "workTerminal.claudeExtraArgs": {
+          "type": "string",
+          "default": "",
+          "description": "Extra arguments appended to all Claude sessions."
+        },
+        "workTerminal.copilotCommand": {
+          "type": "string",
+          "default": "gh",
+          "description": "Command used to launch Copilot CLI sessions."
+        },
+        "workTerminal.copilotExtraArgs": {
+          "type": "string",
+          "default": "",
+          "description": "Extra arguments appended to all Copilot sessions."
+        },
+        "workTerminal.strandsCommand": {
+          "type": "string",
+          "default": "",
+          "description": "Command used to launch Strands agent sessions."
+        },
+        "workTerminal.strandsExtraArgs": {
+          "type": "string",
+          "default": "",
+          "description": "Extra arguments appended to all Strands sessions."
+        },
+        "workTerminal.additionalAgentContext": {
+          "type": "string",
+          "default": "",
+          "description": "Additional context appended to all agent prompts."
+        },
+        "workTerminal.acceptNoResumeHooks": {
+          "type": "boolean",
+          "default": false,
+          "description": "Accept agent sessions that have no resume hooks configured."
         }
       }
     }
