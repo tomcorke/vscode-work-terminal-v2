@@ -17,7 +17,8 @@ export type WebviewMessage =
   | { type: "closeTerminal"; sessionId: string }
   | { type: "renameTerminal"; sessionId: string; label: string }
   | { type: "filterChanged"; query: string }
-  | { type: "dragDrop"; itemId: string; toColumn: string; index: number };
+  | { type: "dragDrop"; itemId: string; toColumn: string; index: number }
+  | { type: "reopenClosedTerminal" };
 
 // ---- Extension -> Webview ----
 

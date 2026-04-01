@@ -7,6 +7,7 @@ import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
 import { TerminalManager } from "../terminal/TerminalManager";
 import type { SessionType } from "../core/session/types";
+import { SessionManager } from "../session/SessionManager";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -23,6 +24,7 @@ export class WorkTerminalPanel {
   private _fileWatcher: FileWatcher | null = null;
   private _adapter: AdapterBundle | null = null;
   private readonly _terminalManager: TerminalManager;
+  private _sessionManager: SessionManager | null = null;
 
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
@@ -41,6 +43,10 @@ export class WorkTerminalPanel {
 
     this._panel.onDidDispose(() => {
       this._disposed = true;
+      // Persist sessions before tearing down
+      this._sessionManager?.deactivate().catch((err) => {
+        console.error("[work-terminal] Session persist on dispose failed:", err);
+      });
       this._fileWatcher?.dispose();
       this._terminalManager.disposeAll();
       WorkTerminalPanel.current = undefined;
@@ -61,6 +67,18 @@ export class WorkTerminalPanel {
     };
     this._terminalManager.onClosed = (sessionId) => {
       this.postMessage({ type: "terminalClosed", sessionId });
+      // Notify session manager of terminal close for recently-closed tracking
+      const info = this._terminalManager.getSessionInfo(sessionId);
+      if (info && this._sessionManager) {
+        this._sessionManager.onTerminalClosed({
+          sessionId,
+          label: info.label,
+          itemId: null,
+          sessionType: info.sessionType,
+        }).catch((err) => {
+          console.error("[work-terminal] Session close tracking failed:", err);
+        });
+      }
     };
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
       this.postMessage({ type: "agentStateChanged", sessionId, state });
@@ -78,6 +96,36 @@ export class WorkTerminalPanel {
     const instance = new WorkTerminalPanel(extensionUri);
     WorkTerminalPanel.current = instance;
     return instance;
+  }
+
+  /**
+   * Initialize the session manager for persistence and recovery.
+   */
+  async initSessionManager(context: vscode.ExtensionContext): Promise<void> {
+    this._sessionManager = new SessionManager({
+      context,
+      terminalManager: this._terminalManager,
+    });
+    const { persisted, stashedState } = await this._sessionManager.activate();
+    if (persisted.length > 0) {
+      console.log(
+        "[work-terminal] Ready to recover",
+        persisted.length,
+        "persisted sessions",
+      );
+    }
+    if (stashedState) {
+      console.log(
+        "[work-terminal] Recovered stashed state from hot-reload",
+      );
+    }
+  }
+
+  /**
+   * Get the session manager (for use by commands like reopen-closed-terminal).
+   */
+  get sessionManager(): SessionManager | null {
+    return this._sessionManager;
   }
 
   /**
@@ -129,6 +177,9 @@ export class WorkTerminalPanel {
   }
 
   dispose(): void {
+    this._sessionManager?.deactivate().catch((err) => {
+      console.error("[work-terminal] Session persist on dispose failed:", err);
+    });
     this._fileWatcher?.dispose();
     this._terminalManager.disposeAll();
     this._panel.dispose();
@@ -203,6 +254,9 @@ export class WorkTerminalPanel {
       case "renameTerminal":
         this._terminalManager.renameTerminal(message.sessionId, message.label);
         break;
+      case "reopenClosedTerminal":
+        this._handleReopenClosedTerminal();
+        break;
       default:
         break;
     }
@@ -271,6 +325,26 @@ export class WorkTerminalPanel {
     };
     const sessionType = typeMap[terminalType] || "shell";
     this._terminalManager.createTerminal({ sessionType, itemId });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reopen closed terminal
+  // ---------------------------------------------------------------------------
+
+  private _handleReopenClosedTerminal(): void {
+    if (!this._sessionManager) return;
+    const entry = this._sessionManager.popRecentlyClosed();
+    if (!entry) {
+      return;
+    }
+    this._terminalManager.createTerminal({
+      sessionType: entry.sessionType,
+      itemId: entry.itemId,
+      label: entry.label,
+      cwd: entry.cwd,
+      command: entry.command,
+      args: entry.commandArgs,
+    });
   }
 
   // ---------------------------------------------------------------------------

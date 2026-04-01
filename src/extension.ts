@@ -59,12 +59,39 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("workTerminal.openPanel", () => {
-      WorkTerminalPanel.createOrShow(context.extensionUri);
+    vscode.commands.registerCommand("workTerminal.openPanel", async () => {
+      const panel = WorkTerminalPanel.createOrShow(context.extensionUri);
+      // Initialize session manager if not already done
+      if (!panel.sessionManager) {
+        await panel.initSessionManager(context);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.reopenClosedTerminal", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel?.sessionManager) return;
+      const entry = panel.sessionManager.popRecentlyClosed();
+      if (!entry) {
+        vscode.window.showInformationMessage("No recently closed terminals to reopen.");
+        return;
+      }
+      // Send message to panel to reopen
+      panel.postMessage({
+        type: "terminalCreated",
+        sessionId: "",
+        label: entry.label,
+        sessionType: entry.sessionType,
+      });
     })
   );
 }
 
 export function deactivate() {
-  WorkTerminalPanel.current?.dispose();
+  const panel = WorkTerminalPanel.current;
+  if (panel) {
+    // Session persistence is handled in panel.dispose()
+    panel.dispose();
+  }
 }

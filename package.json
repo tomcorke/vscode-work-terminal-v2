@@ -17,6 +17,11 @@
         "command": "workTerminal.openPanel",
         "title": "Open Work Terminal",
         "category": "Work Terminal"
+      },
+      {
+        "command": "workTerminal.reopenClosedTerminal",
+        "title": "Reopen Closed Terminal",
+        "category": "Work Terminal"
       }
     ],
     "viewsContainers": {

@@ -374,6 +374,41 @@ export class TerminalManager {
   }
 
   /**
+   * Get full info for all active terminal instances (for session persistence).
+   */
+  getAllSessionInfo(): Array<{
+    sessionId: string;
+    itemId: string | null;
+    label: string;
+    sessionType: SessionType;
+    agentSessionId: string;
+    cwd?: string;
+    commandArgs?: string[];
+    profileColor?: string;
+  }> {
+    const result: Array<{
+      sessionId: string;
+      itemId: string | null;
+      label: string;
+      sessionType: SessionType;
+      agentSessionId: string;
+      cwd?: string;
+      commandArgs?: string[];
+      profileColor?: string;
+    }> = [];
+    for (const instance of this.terminals.values()) {
+      result.push({
+        sessionId: instance.sessionId,
+        itemId: instance.itemId,
+        label: instance.label,
+        sessionType: instance.sessionType,
+        agentSessionId: instance.agentSessionId,
+      });
+    }
+    return result;
+  }
+
+  /**
    * Rename a terminal tab.
    */
   renameTerminal(sessionId: string, label: string): void {
