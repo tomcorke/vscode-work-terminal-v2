@@ -248,6 +248,105 @@ describe("TaskParser", () => {
     });
   });
 
+  describe("backfillItemId", () => {
+    it("returns the item unchanged when ID is not path-based", async () => {
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
+      const item = {
+        id: "existing-uuid",
+        path: "2 - Areas/Tasks/active/task.md",
+        title: "Test",
+        state: "active",
+        metadata: {},
+      };
+      const result = await parser.backfillItemId(item);
+      expect(result).toEqual(item);
+    });
+
+    it("writes a UUID to frontmatter and returns updated item", async () => {
+      const vscode = await import("vscode");
+      const content = "---\ntitle: Test\nstate: active\n---\nBody";
+      const readFile = vi.mocked(vscode.workspace.fs.readFile);
+      const writeFile = vi.mocked(vscode.workspace.fs.writeFile);
+      readFile.mockResolvedValueOnce(new TextEncoder().encode(content));
+      writeFile.mockResolvedValueOnce(undefined);
+
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
+      const filePath = "2 - Areas/Tasks/active/task.md";
+      const item = {
+        id: filePath,
+        path: filePath,
+        title: "Test",
+        state: "active",
+        metadata: {},
+      };
+      const result = await parser.backfillItemId(item);
+
+      expect(result).not.toBeNull();
+      expect(result!.id).not.toBe(filePath);
+      expect(result!.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+      expect(writeFile).toHaveBeenCalled();
+    });
+
+    it("uses existing frontmatter ID if one appeared since last parse", async () => {
+      const vscode = await import("vscode");
+      const content = "---\nid: pre-existing-uuid\ntitle: Test\nstate: active\n---\nBody";
+      const readFile = vi.mocked(vscode.workspace.fs.readFile);
+      readFile.mockResolvedValueOnce(new TextEncoder().encode(content));
+
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
+      const filePath = "2 - Areas/Tasks/active/task.md";
+      const item = {
+        id: filePath,
+        path: filePath,
+        title: "Test",
+        state: "active",
+        metadata: {},
+      };
+      const result = await parser.backfillItemId(item);
+
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe("pre-existing-uuid");
+    });
+
+    it("deduplicates concurrent backfill calls for the same item", async () => {
+      const vscode = await import("vscode");
+      const content = "---\ntitle: Test\nstate: active\n---\nBody";
+      const readFile = vi.mocked(vscode.workspace.fs.readFile);
+      const writeFile = vi.mocked(vscode.workspace.fs.writeFile);
+
+      readFile.mockClear();
+      writeFile.mockClear();
+
+      let resolveRead!: (value: Uint8Array) => void;
+      readFile.mockImplementationOnce(
+        () => new Promise<Uint8Array>((resolve) => { resolveRead = resolve; }),
+      );
+      writeFile.mockResolvedValueOnce(undefined);
+
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
+      const filePath = "2 - Areas/Tasks/active/task.md";
+      const item = {
+        id: filePath,
+        path: filePath,
+        title: "Test",
+        state: "active",
+        metadata: {},
+      };
+
+      const p1 = parser.backfillItemId(item);
+      const p2 = parser.backfillItemId(item);
+
+      resolveRead(new TextEncoder().encode(content));
+
+      const [result1, result2] = await Promise.all([p1, p2]);
+
+      expect(result1!.id).toBe(result2!.id);
+      expect(readFile).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("isItemFile", () => {
     it("matches files under basePath", () => {
       const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);

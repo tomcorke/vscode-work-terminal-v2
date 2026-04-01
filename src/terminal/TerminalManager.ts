@@ -465,6 +465,17 @@ export class TerminalManager {
   }
 
   /**
+   * Rekey all terminals from one item ID to another (used after ID backfill).
+   */
+  rekeyItem(oldId: string, newId: string): void {
+    for (const instance of this.terminals.values()) {
+      if (instance.itemId === oldId) {
+        instance.itemId = newId;
+      }
+    }
+  }
+
+  /**
    * Close all terminals for a work item.
    */
   closeAllForItem(itemId: string): void {
