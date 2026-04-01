@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
       await vscode.commands.executeCommand("workTerminal.openPanel");
       const panel = WorkTerminalPanel.current;
       if (panel) {
-        panel.handleSidebarMessage({ type: "itemSelected", id: itemId });
+        await panel.selectItemFromSidebar(itemId);
       }
     }),
   );

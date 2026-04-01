@@ -377,6 +377,16 @@ export class WorkTerminalPanel {
     this._handleMessage(message);
   }
 
+  /**
+   * Select an item from the sidebar and open its detail file beside the panel.
+   * This keeps sidebar clicks on an awaited path instead of relying on the
+   * generic fire-and-forget webview message handler.
+   */
+  async selectItemFromSidebar(itemId: string): Promise<void> {
+    this.postMessage({ type: "selectItem", itemId });
+    await this._handleItemSelected(itemId);
+  }
+
   // ---------------------------------------------------------------------------
   // Session state notifications
   // ---------------------------------------------------------------------------
@@ -815,7 +825,7 @@ export class WorkTerminalPanel {
     this._closeDetailEditor();
 
     await vscode.window.showTextDocument(uri, {
-      viewColumn: vscode.ViewColumn.Beside,
+      viewColumn: this._getDetailViewColumn(),
       preview: true,
     });
     this._detailEditorUri = uri;
@@ -824,6 +834,14 @@ export class WorkTerminalPanel {
     if (item.id === item.path) {
       this._backfillItemId(item);
     }
+  }
+
+  private _getDetailViewColumn(): vscode.ViewColumn {
+    const panelColumn = this._panel.viewColumn;
+    if (panelColumn === undefined) {
+      return vscode.ViewColumn.Beside;
+    }
+    return Math.min(panelColumn + 1, vscode.ViewColumn.Nine) as vscode.ViewColumn;
   }
 
   /**
