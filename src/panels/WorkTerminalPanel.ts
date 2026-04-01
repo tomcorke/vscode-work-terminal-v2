@@ -5,7 +5,7 @@ import type { WebviewMessage, ExtensionMessage } from "../webview/messages";
 import { WorkItemService } from "../services/WorkItemService";
 import { FileWatcher } from "../services/FileWatcher";
 import type { AdapterBundle } from "../core/interfaces";
-import { getNonce } from "../core/utils";
+import { getNonce, expandTilde } from "../core/utils";
 import { TerminalManager } from "../terminal/TerminalManager";
 import { isSessionType, type SessionType } from "../core/session/types";
 import { SessionManager } from "../session/SessionManager";
@@ -417,7 +417,30 @@ export class WorkTerminalPanel {
   }
 
   private async _handleCreateItem(title: string, column?: string): Promise<void> {
-    if (!this._workItemService) return;
+    if (!this._workItemService || !this._adapter) return;
+
+    // If no column provided, show column picker using adapter's creation columns
+    if (!column) {
+      const creationColumns = this._adapter.config.creationColumns;
+      if (creationColumns.length > 0) {
+        const defaultCol = creationColumns.find((c) => c.default) || creationColumns[0];
+        if (creationColumns.length === 1) {
+          column = defaultCol.id;
+        } else {
+          const picked = await vscode.window.showQuickPick(
+            creationColumns.map((c) => ({
+              label: c.label,
+              id: c.id,
+              picked: c.id === defaultCol.id,
+            })),
+            { placeHolder: "Select column for new item" },
+          );
+          if (!picked) return;
+          column = picked.id;
+        }
+      }
+    }
+
     if (!title) {
       // Show input box for title
       const input = await vscode.window.showInputBox({
@@ -466,9 +489,37 @@ export class WorkTerminalPanel {
   // Terminal launch handlers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Resolve CWD for a work item. Checks (in order):
+   * 1. `cwd` field in the item's frontmatter metadata
+   * 2. The item file's parent directory
+   * Returns undefined if the item is not found.
+   */
+  private _resolveItemCwd(itemId: string): string | undefined {
+    if (!this._workItemService) return undefined;
+    const item = this._workItemService.getItemById(itemId);
+    if (!item) return undefined;
+
+    const meta = (item.metadata || {}) as Record<string, unknown>;
+    if (typeof meta.cwd === "string" && meta.cwd.trim()) {
+      return expandTilde(meta.cwd.trim());
+    }
+
+    // Fall back to the task file's parent directory
+    if (item.path) {
+      const dir = path.dirname(item.path);
+      if (dir && dir !== ".") {
+        return dir;
+      }
+    }
+
+    return undefined;
+  }
+
   private _handleLaunchTerminal(itemId: string, profile?: string): void {
     const sessionType: SessionType = profile && isSessionType(profile) ? profile : "shell";
-    this._terminalManager.createTerminal({ sessionType, itemId });
+    const cwd = this._resolveItemCwd(itemId);
+    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
   }
 
   private _handleCreateTerminal(terminalType: string, itemId?: string): void {
@@ -478,7 +529,8 @@ export class WorkTerminalPanel {
       copilot: "copilot",
     };
     const sessionType = typeMap[terminalType] || "shell";
-    this._terminalManager.createTerminal({ sessionType, itemId });
+    const cwd = itemId ? this._resolveItemCwd(itemId) : undefined;
+    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
   }
 
   // ---------------------------------------------------------------------------
@@ -548,7 +600,9 @@ export class WorkTerminalPanel {
 
     const sessionType = agentTypeToSessionType(profile.agentType, profile.useContext);
     const command = this._profileManager.resolveCommand(profile);
-    const cwd = cwdOverride || this._profileManager.resolveCwd(profile);
+    // CWD resolution: launch override > per-task CWD > profile CWD > global setting
+    const itemCwd = itemId ? this._resolveItemCwd(itemId) : undefined;
+    const cwd = cwdOverride || itemCwd || this._profileManager.resolveCwd(profile);
     const label = labelOverride || profile.name;
     const contextPrompt = this._profileManager.resolveContextPrompt(profile);
 

@@ -14,6 +14,7 @@ export class WorkItemService {
   private adapter: AdapterBundle;
   private globalState: vscode.Memento;
   private customOrder: Record<string, string[]> = {};
+  private settings: Record<string, unknown>;
 
   private static ORDER_KEY = "workTerminal.customOrder";
 
@@ -27,6 +28,7 @@ export class WorkItemService {
     this.parser = adapter.createParser(basePath, settings);
     this.mover = adapter.createMover(basePath, settings);
     this.globalState = globalState;
+    this.settings = settings;
     this.customOrder = globalState.get(WorkItemService.ORDER_KEY, {});
   }
 
@@ -36,6 +38,10 @@ export class WorkItemService {
 
   getItems(): WorkItem[] {
     return this.items;
+  }
+
+  getItemById(id: string): WorkItem | undefined {
+    return this.items.find((i) => i.id === id);
   }
 
   getGrouped(): Record<string, WorkItem[]> {
@@ -68,21 +74,45 @@ export class WorkItemService {
       for (const item of sorted) {
         const meta = (item.metadata || {}) as Record<string, unknown>;
         const source = meta.source as { type?: string; id?: string } | undefined;
-        const priority = meta.priority as { score?: number } | undefined;
+        const priority = meta.priority as {
+          score?: number;
+          "has-blocker"?: boolean;
+          "blocker-context"?: string;
+        } | undefined;
         const tags = meta.tags as string[] | undefined;
+        const goals = meta.goal as string[] | undefined;
 
         const metaStrings: Record<string, string> = {};
         if (priority?.score) metaStrings.score = String(priority.score);
         if (tags?.length) metaStrings.tags = tags.join(",");
         if (meta.color) metaStrings.color = String(meta.color);
 
-        dtos.push({
+        const isJira = source?.type === "jira" && source.id;
+        const jiraBaseUrl = typeof this.settings["adapter.jiraBaseUrl"] === "string"
+          ? (this.settings["adapter.jiraBaseUrl"] as string).trim()
+          : "";
+
+        const dto: WorkItemDTO = {
           id: item.id,
           title: item.title,
           column: item.state === "done" ? "done" : item.state,
-          source: source?.type === "jira" && source.id ? source.id : source?.type,
+          source: isJira ? source!.id : source?.type,
           meta: Object.keys(metaStrings).length > 0 ? metaStrings : undefined,
-        });
+        };
+
+        if (goals?.length) dto.goals = goals;
+        if (priority?.["has-blocker"]) {
+          dto.hasBlocker = true;
+          if (priority["blocker-context"]) {
+            dto.blockerContext = String(priority["blocker-context"]);
+          }
+        }
+        if (isJira) {
+          dto.jiraKey = String(source!.id).toUpperCase();
+          if (jiraBaseUrl) dto.jiraBaseUrl = jiraBaseUrl;
+        }
+
+        dtos.push(dto);
       }
     }
 
@@ -115,7 +145,7 @@ export class WorkItemService {
 
   async createItem(title: string, columnId?: string): Promise<void> {
     if (!this.adapter.onItemCreated) return;
-    const settings: Record<string, unknown> = {};
+    const settings: Record<string, unknown> = { ...this.settings };
     if (columnId) settings._columnId = columnId;
     await this.adapter.onItemCreated(title, settings);
   }
