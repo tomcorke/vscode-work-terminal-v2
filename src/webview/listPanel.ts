@@ -405,6 +405,14 @@ export class ListPanel {
           this.vscode.postMessage({ type: "contextMenuMove", itemId: item.id, toColumn: col });
         },
       });
+      if (col === "done") {
+        menuItems.push({
+          label: "Done & Close Sessions",
+          action: () => {
+            this.vscode.postMessage({ type: "doneAndCloseSessions", itemId: item.id });
+          },
+        });
+      }
     }
 
     menuItems.push({
