@@ -261,6 +261,14 @@ export class TerminalPanel {
     if (tab) tab.terminal.write(data);
   }
 
+  renameTab(sessionId: string, label: string): void {
+    const tab = this.tabs.find((t) => t.sessionId === sessionId);
+    if (tab) {
+      tab.label = label;
+      this.renderTabBar();
+    }
+  }
+
   removeTerminal(sessionId: string): void {
     const index = this.tabs.findIndex((t) => t.sessionId === sessionId);
     if (index === -1) return;

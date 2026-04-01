@@ -40,6 +40,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "terminalClosed":
       terminalPanel?.removeTerminal(message.sessionId);
       break;
+    case "terminalRenamed":
+      terminalPanel?.renameTab(message.sessionId, message.label);
+      break;
     case "agentStateChanged":
       terminalPanel?.updateAgentState(message.sessionId, message.state);
       break;
