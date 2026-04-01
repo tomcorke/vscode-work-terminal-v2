@@ -14,6 +14,12 @@ interface SessionInfo {
   agentState?: "active" | "idle" | "waiting";
 }
 
+interface PlaceholderCard {
+  id: string;
+  title: string;
+  column: string;
+}
+
 interface ListPanelState {
   items: WorkItemDTO[];
   columns: string[];
@@ -22,6 +28,9 @@ interface ListPanelState {
   filterTerm: string;
   sessionCounts: Map<string, SessionInfo>;
   ingestingIds: Set<string>;
+  placeholders: Map<string, PlaceholderCard>;
+  /** IDs that should play success animation on next render */
+  pendingSuccessIds: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +57,8 @@ export class ListPanel {
       filterTerm: "",
       sessionCounts: new Map(),
       ingestingIds: new Set(),
+      placeholders: new Map(),
+      pendingSuccessIds: new Set(),
     };
   }
 
@@ -96,6 +107,35 @@ export class ListPanel {
     if (card) {
       card.classList.remove("wt-card-is-ingesting");
       card.querySelector(".wt-card-ingesting-badge")?.remove();
+      this.playSuccessAnimation(card);
+    }
+  }
+
+  addPlaceholder(placeholderId: string, title: string, column: string): void {
+    this.state.placeholders.set(placeholderId, { id: placeholderId, title, column });
+    this.render();
+    this.scrollToTop();
+  }
+
+  resolvePlaceholder(placeholderId: string, realId: string): void {
+    this.state.placeholders.delete(placeholderId);
+    // Queue success animation for the real card on next render
+    this.state.pendingSuccessIds.add(realId);
+    this.render();
+  }
+
+  failPlaceholder(placeholderId: string): void {
+    const card = this.findCardByItemId(placeholderId);
+    if (card) {
+      card.classList.remove("wt-card-pending", "wt-card-is-ingesting");
+      card.classList.add("wt-card-error");
+      // Auto-dismiss after the error animation completes (2s)
+      setTimeout(() => {
+        this.state.placeholders.delete(placeholderId);
+        card.remove();
+      }, 2000);
+    } else {
+      this.state.placeholders.delete(placeholderId);
     }
   }
 
@@ -160,6 +200,13 @@ export class ListPanel {
 
       this.setupDropZone(cardsEl, colId);
 
+      // Placeholder cards at the top of their target column
+      for (const ph of this.state.placeholders.values()) {
+        if (ph.column === colId) {
+          cardsEl.appendChild(this.renderPlaceholderCard(ph));
+        }
+      }
+
       for (const item of colItems) {
         const card = this.renderCard(item);
         cardsEl.appendChild(card);
@@ -170,6 +217,15 @@ export class ListPanel {
     }
 
     this.applyFilterVisibility();
+
+    // Play queued success animations
+    if (this.state.pendingSuccessIds.size > 0) {
+      for (const id of this.state.pendingSuccessIds) {
+        const card = this.findCardByItemId(id);
+        if (card) this.playSuccessAnimation(card);
+      }
+      this.state.pendingSuccessIds.clear();
+    }
   }
 
   private renderCard(item: WorkItemDTO): HTMLElement {
@@ -478,6 +534,7 @@ export class ListPanel {
         item.meta?.tags || "",
         item.jiraKey || "",
         ...(item.goals || []),
+        item.blockerContext || "",
       ].join(" ").toLowerCase();
 
       card.style.display = searchable.includes(term) ? "" : "none";
@@ -580,6 +637,49 @@ export class ListPanel {
 
   private removeDropIndicators(): void {
     this.listEl.querySelectorAll(".wt-drop-indicator").forEach((el) => el.remove());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Placeholder cards & success animation
+  // ---------------------------------------------------------------------------
+
+  private renderPlaceholderCard(ph: PlaceholderCard): HTMLElement {
+    const card = document.createElement("div");
+    card.className = "wt-card-wrapper wt-card-pending wt-card-is-ingesting";
+    card.dataset.itemId = ph.id;
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "wt-card-title-row";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "wt-card-title";
+    titleEl.textContent = ph.title || "Creating...";
+    titleRow.appendChild(titleEl);
+
+    card.appendChild(titleRow);
+
+    const metaRow = document.createElement("div");
+    metaRow.className = "wt-card-meta";
+
+    const badge = document.createElement("span");
+    badge.className = "wt-card-ingesting-badge";
+    badge.textContent = "creating\u2026";
+    metaRow.appendChild(badge);
+
+    card.appendChild(metaRow);
+
+    return card;
+  }
+
+  private playSuccessAnimation(card: HTMLElement): void {
+    card.classList.add("wt-card-success");
+    card.addEventListener("animationend", () => {
+      card.classList.remove("wt-card-success");
+    }, { once: true });
+  }
+
+  private scrollToTop(): void {
+    this.listEl.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // ---------------------------------------------------------------------------
