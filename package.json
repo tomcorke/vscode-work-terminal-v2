@@ -196,42 +196,6 @@
           "description": "Expose a debug API for development and troubleshooting.",
           "scope": "window"
         },
-        "workTerminal.claudeCommand": {
-          "type": "string",
-          "default": "claude",
-          "description": "Command used to launch Claude CLI sessions.",
-          "scope": "window"
-        },
-        "workTerminal.claudeExtraArgs": {
-          "type": "string",
-          "default": "",
-          "description": "Extra arguments appended to all Claude sessions.",
-          "scope": "window"
-        },
-        "workTerminal.copilotCommand": {
-          "type": "string",
-          "default": "gh",
-          "description": "Command used to launch Copilot CLI sessions.",
-          "scope": "window"
-        },
-        "workTerminal.copilotExtraArgs": {
-          "type": "string",
-          "default": "",
-          "description": "Extra arguments appended to all Copilot sessions.",
-          "scope": "window"
-        },
-        "workTerminal.strandsCommand": {
-          "type": "string",
-          "default": "",
-          "description": "Command used to launch Strands agent sessions.",
-          "scope": "window"
-        },
-        "workTerminal.strandsExtraArgs": {
-          "type": "string",
-          "default": "",
-          "description": "Extra arguments appended to all Strands sessions.",
-          "scope": "window"
-        },
         "workTerminal.additionalAgentContext": {
           "type": "string",
           "default": "",
