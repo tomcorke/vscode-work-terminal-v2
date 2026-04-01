@@ -640,11 +640,43 @@ a.wt-card-source--jira:hover {
   }
 }
 
-/* --- Idle: badge grayscale filter (applied after delay) --- */
+/* --- Idle: depleting arc + desaturation over 300s --- */
 
 .wt-agent-idle .wt-session-badge {
-  filter: grayscale(0.7);
-  transition: filter 2s ease;
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  animation: wt-badge-desaturate 300s linear forwards;
+  animation-delay: var(--idle-offset, 0s);
+}
+
+.wt-agent-idle .wt-session-badge::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 12px;
+  background: conic-gradient(var(--vscode-descriptionForeground, #888) 0deg, var(--vscode-descriptionForeground, #888) var(--wt-idle-arc), transparent var(--wt-idle-arc), transparent 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  animation: wt-badge-deplete 300s linear forwards;
+  animation-delay: var(--idle-offset, 0s);
+  z-index: -1;
+}
+
+@keyframes wt-badge-desaturate {
+  0% { filter: saturate(1); }
+  100% { filter: saturate(0.1); }
+}
+
+@property --wt-idle-arc {
+  syntax: "<angle>";
+  initial-value: 360deg;
+  inherits: false;
+}
+
+@keyframes wt-badge-deplete {
+  0% { --wt-idle-arc: 360deg; }
+  100% { --wt-idle-arc: 0deg; }
 }
 
 /* =============================================================================

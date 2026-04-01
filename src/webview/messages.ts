@@ -79,7 +79,7 @@ export type ExtensionMessage =
   | { type: "terminalCreated"; sessionId: string; label: string; sessionType: string; itemId?: string }
   | { type: "terminalClosed"; sessionId: string }
   | { type: "terminalRenamed"; sessionId: string; label: string }
-  | { type: "agentStateChanged"; sessionId: string; state: string }
+  | { type: "agentStateChanged"; sessionId: string; state: string; itemId?: string; idleSince?: number }
   | {
       type: "sessionStateChanged";
       itemId: string;

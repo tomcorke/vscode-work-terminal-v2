@@ -12,6 +12,7 @@ interface SessionInfo {
   count: number;
   kind: "shell" | "agent" | "mixed";
   agentState?: "active" | "idle" | "waiting";
+  idleSince?: number;
 }
 
 interface PlaceholderCard {
@@ -100,10 +101,11 @@ export class ListPanel {
     this.updateSessionBadge(itemId);
   }
 
-  setAgentState(itemId: string, agentState: "active" | "idle" | "waiting" | null): void {
+  setAgentState(itemId: string, agentState: "active" | "idle" | "waiting" | null, idleSince?: number): void {
     const info = this.state.sessionCounts.get(itemId);
     if (info) {
       info.agentState = agentState || undefined;
+      info.idleSince = agentState === "idle" ? idleSince : undefined;
     }
     this.updateAgentIndicator(itemId);
   }
@@ -514,11 +516,12 @@ export class ListPanel {
     container.appendChild(badge);
 
     // Agent state indicator on the card wrapper
-    const cardEl = container.closest(".wt-card-wrapper");
+    const cardEl = container.closest(".wt-card-wrapper") as HTMLElement | null;
     if (cardEl) {
       cardEl.classList.toggle("wt-agent-active", info.agentState === "active");
       cardEl.classList.toggle("wt-agent-waiting", info.agentState === "waiting");
       cardEl.classList.toggle("wt-agent-idle", info.agentState === "idle");
+      this.applyIdleOffset(cardEl, info);
     }
   }
 
@@ -544,6 +547,17 @@ export class ListPanel {
     card.classList.toggle("wt-agent-active", info?.agentState === "active");
     card.classList.toggle("wt-agent-waiting", info?.agentState === "waiting");
     card.classList.toggle("wt-agent-idle", info?.agentState === "idle");
+    this.applyIdleOffset(card, info);
+  }
+
+  /** Set or remove the --idle-offset CSS variable for staggered idle animations. */
+  private applyIdleOffset(cardEl: HTMLElement, info?: SessionInfo): void {
+    if (info?.agentState === "idle" && info.idleSince) {
+      const elapsed = (Date.now() - info.idleSince) / 1000;
+      cardEl.style.setProperty("--idle-offset", `${-elapsed}s`);
+    } else {
+      cardEl.style.removeProperty("--idle-offset");
+    }
   }
 
   // ---------------------------------------------------------------------------
