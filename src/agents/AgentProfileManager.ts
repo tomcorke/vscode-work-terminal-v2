@@ -10,6 +10,7 @@ import {
   createDefaultProfile,
   getBuiltInProfiles,
 } from "../core/agents/types";
+import { expandTilde } from "../core/utils";
 
 const PROFILES_KEY = "agentProfiles";
 
@@ -161,10 +162,10 @@ export class AgentProfileManager {
 
   resolveCwd(profile: AgentProfile): string {
     if (profile.defaultCwd.trim()) {
-      return profile.defaultCwd.trim();
+      return expandTilde(profile.defaultCwd.trim());
     }
     const config = vscode.workspace.getConfiguration("workTerminal");
-    return config.get<string>("defaultTerminalCwd", "~");
+    return expandTilde(config.get<string>("defaultTerminalCwd", "~"));
   }
 
   resolveArguments(profile: AgentProfile): string {
