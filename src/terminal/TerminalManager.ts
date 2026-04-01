@@ -13,7 +13,7 @@ import { isResumableSessionType } from "../core/session/types";
 import { AgentStateDetector, aggregateState } from "./AgentStateDetector";
 import type { AgentState } from "./AgentStateDetector";
 import { AgentSessionRename } from "../agents/AgentSessionRename";
-import { buildAgentLaunchArgs, buildClaudeArgs, buildCopilotArgs, generateSessionId, augmentPath, parseExtraArgs } from "./AgentLauncher";
+import { buildAgentLaunchArgs, buildClaudeArgs, buildCopilotArgs, generateSessionId, augmentPath } from "./AgentLauncher";
 
 // ---------------------------------------------------------------------------
 // node-pty types (optional dependency)
@@ -184,7 +184,7 @@ export class TerminalManager {
             additionalAgentContext: config.get<string>("additionalAgentContext"),
           },
           agentSessionId,
-          options.contextPrompt,
+          sessionType === "claude-with-context" ? options.contextPrompt : undefined,
           options.resumeSessionId,
         );
         args = [...args, ...claudeResult.args];
@@ -192,7 +192,7 @@ export class TerminalManager {
       } else if (sessionType === "copilot" || sessionType === "copilot-with-context") {
         const copilotArgs = buildCopilotArgs(
           { copilotExtraArgs: config.get<string>("copilotExtraArgs") },
-          options.contextPrompt,
+          sessionType === "copilot-with-context" ? options.contextPrompt : undefined,
           options.resumeSessionId,
         );
         args = [...args, ...copilotArgs];
