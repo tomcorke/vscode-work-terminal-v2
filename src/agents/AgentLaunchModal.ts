@@ -52,10 +52,13 @@ export async function showLaunchModal(options: {
   ];
 
   if (recentlyClosed.length > 0) {
+    const latest = recentlyClosed[0];
+    const latestAgo = formatTimeAgo(latest.closedAt);
+    const latestType = formatSessionType(latest.sessionType);
     modeItems.push({
       id: "restore",
       label: "$(history) Restore Recent",
-      description: `${recentlyClosed.length} recently closed session(s)`,
+      description: `${recentlyClosed.length} session(s) - latest: ${latest.label} (${latestType}, ${latestAgo})`,
     });
   }
 
@@ -216,11 +219,22 @@ async function showRestoreFlow(
   const items = recentlyClosed.map((entry) => {
     const ago = formatTimeAgo(entry.closedAt);
     const hasResume = entry.recoveryMode === "resume" && entry.claudeSessionId;
+    const typeName = formatSessionType(entry.sessionType);
+
+    const detailParts: string[] = [];
+    if (hasResume) {
+      detailParts.push("$(debug-continue) Resume available");
+    } else {
+      detailParts.push("$(refresh) Relaunch only");
+    }
+    if (entry.cwd) {
+      detailParts.push(`$(folder) ${entry.cwd}`);
+    }
 
     return {
       label: `$(${getCodiconForSessionType(entry.sessionType)}) ${entry.label}`,
-      description: `${entry.sessionType} - ${ago}`,
-      detail: hasResume ? "Resumable session available" : "Relaunch only",
+      description: `${typeName} - closed ${ago}`,
+      detail: detailParts.join("  |  "),
       entry,
     };
   });
@@ -229,6 +243,7 @@ async function showRestoreFlow(
     title: "Restore Recent Session",
     placeHolder: "Select a recently closed session to restore",
     matchOnDescription: true,
+    matchOnDetail: true,
   });
 
   if (!choice) return undefined;
@@ -289,7 +304,21 @@ function getCodiconForSessionType(sessionType: string): string {
   return "terminal";
 }
 
-function formatTimeAgo(timestamp: number): string {
+/** Human-friendly label for a session type. */
+export function formatSessionType(sessionType: string): string {
+  const map: Record<string, string> = {
+    shell: "Shell",
+    claude: "Claude",
+    "claude-with-context": "Claude (context)",
+    copilot: "Copilot",
+    "copilot-with-context": "Copilot (context)",
+    strands: "Strands",
+    "strands-with-context": "Strands (context)",
+  };
+  return map[sessionType] ?? sessionType;
+}
+
+export function formatTimeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
