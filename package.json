@@ -76,6 +76,12 @@
         "category": "Work Terminal"
       },
       {
+        "command": "workTerminal.launchAgent",
+        "title": "Launch Agent Session",
+        "category": "Work Terminal",
+        "icon": "$(rocket)"
+      },
+      {
         "command": "workTerminal.togglePanel",
         "title": "Toggle Work Terminal",
         "category": "Work Terminal"

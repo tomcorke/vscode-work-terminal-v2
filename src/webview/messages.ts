@@ -25,7 +25,11 @@ export type WebviewMessage =
   | { type: "saveProfile"; profile: AgentProfile }
   | { type: "deleteProfile"; profileId: string }
   | { type: "reorderProfiles"; orderedIds: string[] }
-  | { type: "launchProfile"; profileId: string; itemId?: string; cwdOverride?: string; labelOverride?: string; extraArgs?: string };
+  | { type: "launchProfile"; profileId: string; itemId?: string; cwdOverride?: string; labelOverride?: string; extraArgs?: string }
+  | { type: "importProfiles" }
+  | { type: "exportProfiles" }
+  | { type: "moveProfileUp"; profileId: string }
+  | { type: "moveProfileDown"; profileId: string };
 
 // ---- Extension -> Webview ----
 

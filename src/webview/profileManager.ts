@@ -75,12 +75,17 @@ export function renderProfileList(profiles: AgentProfile[]): string {
     return `<div class="wt-profile-empty">No profiles configured. Add one to get started.</div>`;
   }
 
-  const rows = profiles.map((p) => {
+  const rows = profiles.map((p, index) => {
     const typeBadge = AGENT_TYPE_LABELS[p.agentType] || p.agentType;
+    const commandBadge = p.command
+      ? `<span class="wt-profile-cmd-badge" title="Custom command: ${escapeHtml(p.command)}">${escapeHtml(p.command.split("/").pop() || p.command)}</span>`
+      : "";
     const badges = [
       `<span class="wt-profile-type-badge">${escapeHtml(typeBadge)}</span>`,
       p.useContext ? `<span class="wt-profile-ctx-badge">ctx</span>` : "",
       p.button.enabled ? `<span class="wt-profile-button-badge">button</span>` : "",
+      p.paramPassMode !== "launch-only" ? `<span class="wt-profile-param-badge">${escapeHtml(p.paramPassMode)}</span>` : "",
+      commandBadge,
     ]
       .filter(Boolean)
       .join("");
@@ -89,6 +94,9 @@ export function renderProfileList(profiles: AgentProfile[]): string {
       ? `<div class="wt-profile-color-swatch" style="background-color:${escapeHtml(p.button.color)}"></div>`
       : "";
 
+    const isFirst = index === 0;
+    const isLast = index === profiles.length - 1;
+
     return `
       <div class="wt-profile-row" data-profile-id="${escapeHtml(p.id)}">
         ${colorSwatch}
@@ -96,12 +104,22 @@ export function renderProfileList(profiles: AgentProfile[]): string {
           <div class="wt-profile-name">${escapeHtml(p.name)}</div>
           <div class="wt-profile-meta">${badges}</div>
         </div>
+        <div class="wt-profile-reorder">
+          <button class="wt-profile-move-btn" data-action="moveProfileUp" data-profile-id="${escapeHtml(p.id)}" ${isFirst ? "disabled" : ""} title="Move up">&#x25B2;</button>
+          <button class="wt-profile-move-btn" data-action="moveProfileDown" data-profile-id="${escapeHtml(p.id)}" ${isLast ? "disabled" : ""} title="Move down">&#x25BC;</button>
+        </div>
         <button class="wt-profile-edit-btn" data-action="editProfile" data-profile-id="${escapeHtml(p.id)}">Edit</button>
         <button class="wt-profile-delete-btn" data-action="deleteProfile" data-profile-id="${escapeHtml(p.id)}">Delete</button>
       </div>`;
   });
 
-  return `<div class="wt-profile-list">${rows.join("")}</div>`;
+  const toolbar = `
+    <div class="wt-profile-toolbar">
+      <button class="wt-profile-toolbar-btn" data-action="importProfiles" title="Import profiles from JSON">Import</button>
+      <button class="wt-profile-toolbar-btn" data-action="exportProfiles" title="Export profiles as JSON">Export</button>
+    </div>`;
+
+  return `${toolbar}<div class="wt-profile-list">${rows.join("")}</div>`;
 }
 
 /**

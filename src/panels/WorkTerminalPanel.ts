@@ -13,6 +13,8 @@ import { AgentProfileManager } from "../agents/AgentProfileManager";
 import { AgentSessionTracker } from "../agents/AgentSessionTracker";
 import { agentTypeToSessionType } from "../core/agents/types";
 import type { AgentProfile } from "../core/agents/types";
+import { showLaunchModal, type LaunchModalResult } from "../agents/AgentLaunchModal";
+import { parseExtraArgs } from "../terminal/AgentLauncher";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -383,7 +385,25 @@ export class WorkTerminalPanel {
         this._handleReorderProfiles(message.orderedIds);
         break;
       case "launchProfile":
-        this._handleLaunchProfile(message.profileId, message.itemId);
+        this._handleLaunchProfile(
+          message.profileId,
+          message.itemId,
+          message.cwdOverride,
+          message.labelOverride,
+          message.extraArgs,
+        );
+        break;
+      case "importProfiles":
+        this._handleImportProfiles();
+        break;
+      case "exportProfiles":
+        this._handleExportProfiles();
+        break;
+      case "moveProfileUp":
+        this._handleMoveProfile(message.profileId, "up");
+        break;
+      case "moveProfileDown":
+        this._handleMoveProfile(message.profileId, "down");
         break;
       default:
         break;
@@ -509,13 +529,154 @@ export class WorkTerminalPanel {
     this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
   }
 
-  private _handleLaunchProfile(profileId: string, itemId?: string): void {
+  private _handleLaunchProfile(
+    profileId: string,
+    itemId?: string,
+    cwdOverride?: string,
+    labelOverride?: string,
+    extraArgs?: string,
+  ): void {
     if (!this._profileManager) return;
     const profile = this._profileManager.getProfile(profileId);
     if (!profile) return;
 
     const sessionType = agentTypeToSessionType(profile.agentType, profile.useContext);
-    this._terminalManager.createTerminal({ sessionType, itemId });
+    const command = this._profileManager.resolveCommand(profile);
+    const cwd = cwdOverride || this._profileManager.resolveCwd(profile);
+    const label = labelOverride || profile.name;
+    const contextPrompt = this._profileManager.resolveContextPrompt(profile);
+
+    const resolvedArgs = extraArgs ?? this._profileManager.resolveArguments(profile);
+    const args = resolvedArgs ? parseExtraArgs(resolvedArgs) : undefined;
+
+    this._terminalManager.createTerminal({
+      sessionType,
+      itemId,
+      command,
+      cwd,
+      label,
+      args,
+      contextPrompt,
+    });
+  }
+
+  private async _handleImportProfiles(): Promise<void> {
+    if (!this._profileManager) return;
+
+    const fileUris = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      filters: { JSON: ["json"] },
+      title: "Import Agent Profiles",
+    });
+
+    if (!fileUris || fileUris.length === 0) return;
+
+    const content = await vscode.workspace.fs.readFile(fileUris[0]);
+    const json = new TextDecoder().decode(content);
+    const result = await this._profileManager.importProfiles(json);
+
+    if (result.errors.length > 0) {
+      vscode.window.showWarningMessage(
+        `Imported ${result.imported} profile(s) with ${result.errors.length} error(s): ${result.errors.join("; ")}`,
+      );
+    } else {
+      vscode.window.showInformationMessage(`Imported ${result.imported} profile(s).`);
+    }
+
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  private async _handleExportProfiles(): Promise<void> {
+    if (!this._profileManager) return;
+
+    const json = this._profileManager.exportProfiles();
+    const saveUri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file("agent-profiles.json"),
+      filters: { JSON: ["json"] },
+      title: "Export Agent Profiles",
+    });
+
+    if (!saveUri) return;
+
+    await vscode.workspace.fs.writeFile(saveUri, new TextEncoder().encode(json));
+    vscode.window.showInformationMessage("Profiles exported.");
+  }
+
+  private async _handleMoveProfile(profileId: string, direction: "up" | "down"): Promise<void> {
+    if (!this._profileManager) return;
+
+    const profiles = this._profileManager.getProfiles();
+    const ids = profiles.map((p) => p.id);
+    const index = ids.indexOf(profileId);
+    if (index === -1) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= ids.length) return;
+
+    // Swap
+    [ids[index], ids[targetIndex]] = [ids[targetIndex], ids[index]];
+    await this._profileManager.reorderProfiles(ids);
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  /**
+   * Show the launch modal QuickPick flow and handle the result.
+   */
+  async showLaunchModal(itemId?: string): Promise<void> {
+    if (!this._profileManager) {
+      vscode.window.showInformationMessage("Profile manager not initialized.");
+      return;
+    }
+
+    const recentlyClosed = this._sessionManager
+      ? this._sessionManager.getRecentlyClosed(undefined, 10)
+      : [];
+
+    const config = vscode.workspace.getConfiguration("workTerminal");
+    const defaultCwd = config.get<string>("defaultTerminalCwd", "~");
+
+    const result = await showLaunchModal({
+      profileManager: this._profileManager,
+      recentlyClosed,
+      defaultCwd,
+    });
+
+    if (!result) return;
+
+    if (result.mode === "launch") {
+      this._handleLaunchProfile(
+        result.profile.id,
+        itemId,
+        result.cwdOverride,
+        result.labelOverride,
+        result.extraArgs,
+      );
+    } else if (result.mode === "restore") {
+      const entry = result.entry;
+      if (result.recoveryMode === "resume" && entry.claudeSessionId) {
+        // Resume with existing session ID
+        this._terminalManager.createTerminal({
+          sessionType: entry.sessionType,
+          itemId: entry.itemId,
+          label: entry.label,
+          cwd: entry.cwd,
+          command: entry.command,
+          args: entry.commandArgs,
+        });
+      } else {
+        // Relaunch fresh
+        this._terminalManager.createTerminal({
+          sessionType: entry.sessionType,
+          itemId: entry.itemId,
+          label: entry.label,
+          cwd: entry.cwd,
+          command: entry.command,
+          args: entry.commandArgs,
+        });
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

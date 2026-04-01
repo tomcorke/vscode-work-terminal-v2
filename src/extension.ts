@@ -52,6 +52,17 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.launchAgent", async () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel?.profileManager) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      await panel.showLaunchModal();
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.reopenClosedTerminal", () => {
       const panel = WorkTerminalPanel.current;
       if (!panel?.sessionManager) return;
