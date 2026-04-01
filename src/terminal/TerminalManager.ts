@@ -13,7 +13,7 @@ import { isResumableSessionType } from "../core/session/types";
 import { AgentStateDetector, aggregateState } from "./AgentStateDetector";
 import type { AgentState } from "./AgentStateDetector";
 import { AgentSessionRename } from "../agents/AgentSessionRename";
-import { buildAgentLaunchArgs, generateSessionId, augmentPath } from "./AgentLauncher";
+import { buildAgentLaunchArgs, buildClaudeArgs, buildCopilotArgs, generateSessionId, augmentPath, parseExtraArgs } from "./AgentLauncher";
 
 // ---------------------------------------------------------------------------
 // node-pty types (optional dependency)
@@ -169,9 +169,34 @@ export class TerminalManager {
     let initialPrompt: string | undefined;
 
     if (options.command) {
-      // Caller already resolved the command (profile-based launch)
+      // Caller already resolved the command (profile-based launch).
+      // Still need to augment args with agent-specific flags (session ID,
+      // extra args from settings) and set initialPrompt for context delivery.
       command = options.command;
       args = options.args || [];
+
+      const config = vscode.workspace.getConfiguration("workTerminal");
+
+      if (sessionType === "claude" || sessionType === "claude-with-context") {
+        const claudeResult = buildClaudeArgs(
+          {
+            claudeExtraArgs: config.get<string>("claudeExtraArgs"),
+            additionalAgentContext: config.get<string>("additionalAgentContext"),
+          },
+          agentSessionId,
+          options.contextPrompt,
+          options.resumeSessionId,
+        );
+        args = [...args, ...claudeResult.args];
+        initialPrompt = claudeResult.initialPrompt;
+      } else if (sessionType === "copilot" || sessionType === "copilot-with-context") {
+        const copilotArgs = buildCopilotArgs(
+          { copilotExtraArgs: config.get<string>("copilotExtraArgs") },
+          options.contextPrompt,
+          options.resumeSessionId,
+        );
+        args = [...args, ...copilotArgs];
+      }
     } else if (sessionType === "shell") {
       command = this.getDefaultShell();
       args = options.args || [];
