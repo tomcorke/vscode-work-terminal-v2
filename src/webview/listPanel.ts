@@ -402,9 +402,11 @@ export class ListPanel {
     container.appendChild(badge);
 
     // Agent state indicator on the card wrapper
-    if (info.agentState === "active") {
-      const cardEl = container.closest(".wt-card-wrapper");
-      if (cardEl) cardEl.classList.add("wt-agent-active");
+    const cardEl = container.closest(".wt-card-wrapper");
+    if (cardEl) {
+      cardEl.classList.toggle("wt-agent-active", info.agentState === "active");
+      cardEl.classList.toggle("wt-agent-waiting", info.agentState === "waiting");
+      cardEl.classList.toggle("wt-agent-idle", info.agentState === "idle");
     }
   }
 
@@ -428,6 +430,8 @@ export class ListPanel {
 
     const info = this.state.sessionCounts.get(itemId);
     card.classList.toggle("wt-agent-active", info?.agentState === "active");
+    card.classList.toggle("wt-agent-waiting", info?.agentState === "waiting");
+    card.classList.toggle("wt-agent-idle", info?.agentState === "idle");
   }
 
   // ---------------------------------------------------------------------------
