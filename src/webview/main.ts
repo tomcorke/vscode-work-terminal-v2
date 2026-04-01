@@ -71,6 +71,12 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
     case "clearIngesting":
       listPanel?.clearIngesting(message.itemId);
       break;
+    case "buttonProfiles":
+      terminalPanel?.updateButtonProfiles(message.profiles);
+      break;
+    case "focusFilter":
+      showFilter();
+      break;
     default:
       break;
   }
@@ -252,9 +258,29 @@ function handleThemeChange(): void {
 
 function initToolbar(): void {
   const filterInput = document.getElementById("filter-input") as HTMLInputElement | null;
+  const filterContainer = document.getElementById("filter-container");
+  const filterToggleBtn = document.getElementById("filter-toggle-btn");
+
   if (filterInput && listPanel) {
     filterInput.addEventListener("input", () => {
       listPanel!.applyFilter(filterInput.value);
+    });
+  }
+
+  // Filter toggle button
+  if (filterToggleBtn && filterContainer && filterInput) {
+    filterToggleBtn.addEventListener("click", () => {
+      const isVisible = filterContainer.style.display !== "none";
+      if (isVisible) {
+        filterContainer.style.display = "none";
+        filterInput.value = "";
+        listPanel?.applyFilter("");
+        filterToggleBtn.classList.remove("wt-toolbar-icon-btn-active");
+      } else {
+        filterContainer.style.display = "";
+        filterInput.focus();
+        filterToggleBtn.classList.add("wt-toolbar-icon-btn-active");
+      }
     });
   }
 
@@ -263,6 +289,17 @@ function initToolbar(): void {
     newItemBtn.addEventListener("click", () => {
       postMessage({ type: "createItem", title: "" });
     });
+  }
+}
+
+function showFilter(): void {
+  const filterInput = document.getElementById("filter-input") as HTMLInputElement | null;
+  const filterContainer = document.getElementById("filter-container");
+  const filterToggleBtn = document.getElementById("filter-toggle-btn");
+  if (filterContainer && filterInput) {
+    filterContainer.style.display = "";
+    filterInput.focus();
+    filterToggleBtn?.classList.add("wt-toolbar-icon-btn-active");
   }
 }
 

@@ -32,7 +32,8 @@ export type WebviewMessage =
   | { type: "moveProfileDown"; profileId: string }
   | { type: "copyToClipboard"; text: string }
   | { type: "contextMenuMove"; itemId: string; toColumn: string }
-  | { type: "contextMenuDelete"; itemId: string };
+  | { type: "contextMenuDelete"; itemId: string }
+  | { type: "requestLaunchModal" };
 
 // ---- Extension -> Webview ----
 
@@ -53,6 +54,15 @@ export interface TerminalSessionInfo {
   sessionId: string;
   label: string;
   sessionType: string;
+}
+
+/** Minimal button profile info sent to the webview for rendering profile buttons. */
+export interface ButtonProfileInfo {
+  profileId: string;
+  label: string;
+  icon?: string;
+  color?: string;
+  borderStyle?: string;
 }
 
 export type ExtensionMessage =
@@ -76,4 +86,5 @@ export type ExtensionMessage =
   | { type: "requestCloseActiveTerminal" }
   | { type: "selectItem"; itemId: string }
   | { type: "setIngesting"; itemId: string }
-  | { type: "clearIngesting"; itemId: string };
+  | { type: "clearIngesting"; itemId: string }
+  | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] };

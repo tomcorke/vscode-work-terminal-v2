@@ -12,7 +12,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import type { WebviewMessage, TerminalSessionInfo } from "./messages";
+import type { WebviewMessage, TerminalSessionInfo, ButtonProfileInfo } from "./messages";
 
 // ---------------------------------------------------------------------------
 // xterm.js CSS (embedded to avoid CSP issues with external stylesheets)
@@ -87,6 +87,36 @@ function injectXtermCss(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Profile icon mapping (profile icon names to codicon names)
+// ---------------------------------------------------------------------------
+
+function mapProfileIcon(icon: string): string {
+  const iconMap: Record<string, string> = {
+    claude: "sparkle",
+    copilot: "copilot",
+    terminal: "terminal",
+    bot: "robot",
+    brain: "symbol-misc",
+    code: "code",
+    rocket: "rocket",
+    zap: "zap",
+    cog: "gear",
+    wrench: "wrench",
+    shield: "shield",
+    globe: "globe",
+    search: "search",
+    lightbulb: "lightbulb",
+    flask: "beaker",
+    book: "book",
+    puzzle: "extensions",
+    bee: "bug",
+    aws: "cloud",
+    skyscanner: "globe",
+  };
+  return iconMap[icon] || "terminal";
+}
+
+// ---------------------------------------------------------------------------
 // Terminal tab state
 // ---------------------------------------------------------------------------
 
@@ -127,6 +157,7 @@ export class TerminalPanel {
   private emptyStateEl: HTMLElement;
   private resizeObserver: ResizeObserver;
   private searchBarVisible = false;
+  private buttonProfiles: ButtonProfileInfo[] = [];
 
   constructor(postMessage: (msg: WebviewMessage) => void) {
     this.postMessage = postMessage;
@@ -153,9 +184,6 @@ export class TerminalPanel {
   // Terminal lifecycle
   // -------------------------------------------------------------------------
 
-  /**
-   * Called when the extension creates a new terminal.
-   */
   addTerminal(sessionId: string, label: string, sessionType: string): void {
     const containerEl = document.createElement("div");
     containerEl.className = "wt-terminal-instance hidden";
@@ -179,7 +207,6 @@ export class TerminalPanel {
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(searchAddon);
 
-    // Web links addon - open URLs in default browser
     try {
       const webLinksAddon = new WebLinksAddon();
       terminal.loadAddon(webLinksAddon);
@@ -187,7 +214,6 @@ export class TerminalPanel {
       // WebLinksAddon may fail in some environments
     }
 
-    // Unicode11 addon for better character rendering
     try {
       const unicode11 = new Unicode11Addon();
       terminal.loadAddon(unicode11);
@@ -197,11 +223,8 @@ export class TerminalPanel {
     }
 
     terminal.open(containerEl);
-
-    // Scroll-to-bottom button
     this.attachScrollButton(containerEl, terminal);
 
-    // Try WebGL renderer, fall back to canvas
     let webglAddon: WebglAddon | null = null;
     try {
       webglAddon = new WebglAddon();
@@ -214,28 +237,15 @@ export class TerminalPanel {
       // Canvas fallback is automatic
     }
 
-    // Route keyboard input to extension host
     terminal.onData((data: string) => {
-      this.postMessage({
-        type: "terminalInput",
-        sessionId,
-        data,
-      });
+      this.postMessage({ type: "terminalInput", sessionId, data });
     });
 
-    // macOS keyboard shortcut mappings for terminal navigation
     this.attachTerminalKeyHandler(terminal, sessionId);
 
     const tab: TerminalTab = {
-      sessionId,
-      label,
-      sessionType,
-      terminal,
-      fitAddon,
-      searchAddon,
-      containerEl,
-      webglAddon,
-      agentState: "inactive",
+      sessionId, label, sessionType, terminal, fitAddon, searchAddon,
+      containerEl, webglAddon, agentState: "inactive",
     };
 
     this.tabs.push(tab);
@@ -244,19 +254,11 @@ export class TerminalPanel {
     this.updateEmptyState();
   }
 
-  /**
-   * Write output data to a terminal.
-   */
   writeOutput(sessionId: string, data: string): void {
     const tab = this.tabs.find((t) => t.sessionId === sessionId);
-    if (tab) {
-      tab.terminal.write(data);
-    }
+    if (tab) tab.terminal.write(data);
   }
 
-  /**
-   * Remove a terminal.
-   */
   removeTerminal(sessionId: string): void {
     const index = this.tabs.findIndex((t) => t.sessionId === sessionId);
     if (index === -1) return;
@@ -265,7 +267,6 @@ export class TerminalPanel {
     tab.webglAddon?.dispose();
     tab.terminal.dispose();
     tab.containerEl.remove();
-
     this.tabs.splice(index, 1);
 
     if (this.tabs.length === 0) {
@@ -280,9 +281,6 @@ export class TerminalPanel {
     this.updateEmptyState();
   }
 
-  /**
-   * Update agent state indicator on a tab.
-   */
   updateAgentState(sessionId: string, state: string): void {
     const tab = this.tabs.find((t) => t.sessionId === sessionId);
     if (tab) {
@@ -291,22 +289,13 @@ export class TerminalPanel {
     }
   }
 
-  /**
-   * Update sessions from extension (batch update).
-   */
   updateSessions(sessions: TerminalSessionInfo[]): void {
-    // Add new sessions, remove stale ones
     const currentIds = new Set(this.tabs.map((t) => t.sessionId));
     const incomingIds = new Set(sessions.map((s) => s.sessionId));
 
-    // Remove terminals not in incoming list
     for (const tab of [...this.tabs]) {
-      if (!incomingIds.has(tab.sessionId)) {
-        this.removeTerminal(tab.sessionId);
-      }
+      if (!incomingIds.has(tab.sessionId)) this.removeTerminal(tab.sessionId);
     }
-
-    // Add new terminals
     for (const session of sessions) {
       if (!currentIds.has(session.sessionId)) {
         this.addTerminal(session.sessionId, session.label, session.sessionType);
@@ -321,27 +310,20 @@ export class TerminalPanel {
   private switchToTab(index: number): void {
     if (index < 0 || index >= this.tabs.length) return;
 
-    // Hide all
-    for (const tab of this.tabs) {
-      tab.containerEl.classList.add("hidden");
-    }
+    for (const tab of this.tabs) tab.containerEl.classList.add("hidden");
 
-    // Show target
     const tab = this.tabs[index];
     tab.containerEl.classList.remove("hidden");
     this.activeIndex = index;
 
-    // Fit after making visible
     requestAnimationFrame(() => {
       try {
         tab.fitAddon.fit();
         const dims = tab.fitAddon.proposeDimensions();
         if (dims) {
           this.postMessage({
-            type: "terminalResize",
-            sessionId: tab.sessionId,
-            cols: dims.cols,
-            rows: dims.rows,
+            type: "terminalResize", sessionId: tab.sessionId,
+            cols: dims.cols, rows: dims.rows,
           });
         }
       } catch {
@@ -359,10 +341,8 @@ export class TerminalPanel {
       const dims = tab.fitAddon.proposeDimensions();
       if (dims) {
         this.postMessage({
-          type: "terminalResize",
-          sessionId: tab.sessionId,
-          cols: dims.cols,
-          rows: dims.rows,
+          type: "terminalResize", sessionId: tab.sessionId,
+          cols: dims.cols, rows: dims.rows,
         });
       }
     } catch {
@@ -384,7 +364,6 @@ export class TerminalPanel {
       tabEl.draggable = true;
       tabEl.dataset.index = String(i);
 
-      // Agent state dot
       if (tab.sessionType !== "shell" && tab.agentState !== "inactive") {
         const dot = document.createElement("span");
         dot.style.width = "6px";
@@ -396,13 +375,11 @@ export class TerminalPanel {
         tabEl.appendChild(dot);
       }
 
-      // Label
       const labelEl = document.createElement("span");
       labelEl.className = "wt-tab-label";
       labelEl.textContent = tab.label;
       tabEl.appendChild(labelEl);
 
-      // Close button
       const closeEl = document.createElement("span");
       closeEl.className = "wt-tab-close";
       closeEl.textContent = "\u00d7";
@@ -412,73 +389,95 @@ export class TerminalPanel {
       });
       tabEl.appendChild(closeEl);
 
-      // Click to switch
-      tabEl.addEventListener("click", () => {
-        this.switchToTab(i);
-        this.renderTabBar();
-      });
+      tabEl.addEventListener("click", () => { this.switchToTab(i); this.renderTabBar(); });
+      tabEl.addEventListener("dblclick", (e) => { e.preventDefault(); this.startInlineRename(i, labelEl); });
 
-      // Double-click to rename
-      tabEl.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        this.startInlineRename(i, labelEl);
-      });
-
-      // Drag and drop for tab reordering
-      tabEl.addEventListener("dragstart", (e) => {
-        e.dataTransfer?.setData("text/plain", String(i));
-        tabEl.classList.add("wt-tab-dragging");
-      });
-      tabEl.addEventListener("dragend", () => {
-        tabEl.classList.remove("wt-tab-dragging");
-      });
-      tabEl.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        tabEl.classList.add("wt-tab-drop-target");
-      });
-      tabEl.addEventListener("dragleave", () => {
-        tabEl.classList.remove("wt-tab-drop-target");
-      });
+      tabEl.addEventListener("dragstart", (e) => { e.dataTransfer?.setData("text/plain", String(i)); tabEl.classList.add("wt-tab-dragging"); });
+      tabEl.addEventListener("dragend", () => { tabEl.classList.remove("wt-tab-dragging"); });
+      tabEl.addEventListener("dragover", (e) => { e.preventDefault(); tabEl.classList.add("wt-tab-drop-target"); });
+      tabEl.addEventListener("dragleave", () => { tabEl.classList.remove("wt-tab-drop-target"); });
       tabEl.addEventListener("drop", (e) => {
         e.preventDefault();
         tabEl.classList.remove("wt-tab-drop-target");
         const fromIndex = parseInt(e.dataTransfer?.getData("text/plain") || "-1", 10);
-        if (fromIndex >= 0 && fromIndex !== i) {
-          this.reorderTab(fromIndex, i);
-        }
+        if (fromIndex >= 0 && fromIndex !== i) this.reorderTab(fromIndex, i);
       });
 
-      // Context menu
-      tabEl.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        this.showTabContextMenu(i, e.clientX, e.clientY);
-      });
+      tabEl.addEventListener("contextmenu", (e) => { e.preventDefault(); this.showTabContextMenu(i, e.clientX, e.clientY); });
 
       this.tabsContainerEl.appendChild(tabEl);
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Spawn buttons (profile-driven)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Update the spawn button area with profile-driven buttons.
+   * Called on init and whenever button profiles change from the extension host.
+   */
+  updateButtonProfiles(profiles: ButtonProfileInfo[]): void {
+    this.buttonProfiles = profiles;
+    this.renderSpawnButtons();
+  }
+
   private renderSpawnButtons(): void {
     this.tabButtonsEl.innerHTML = "";
 
-    const buttons = [
-      { label: "Shell", type: "shell" as const },
-      { label: "Claude", type: "claude" as const },
-      { label: "Copilot", type: "copilot" as const },
-    ];
+    // Shell button (always shown)
+    const shellBtn = document.createElement("button");
+    shellBtn.className = "wt-spawn-btn";
+    shellBtn.textContent = "+ Shell";
+    shellBtn.addEventListener("click", () => {
+      this.postMessage({ type: "createTerminal", terminalType: "shell" });
+    });
+    this.tabButtonsEl.appendChild(shellBtn);
 
-    for (const btn of buttons) {
-      const el = document.createElement("button");
-      el.className = "wt-spawn-btn";
-      el.textContent = `+ ${btn.label}`;
-      el.addEventListener("click", () => {
-        this.postMessage({
-          type: "createTerminal",
-          terminalType: btn.type,
-        });
+    // Profile-driven agent buttons (profiles with button.enabled)
+    for (const profile of this.buttonProfiles) {
+      const btn = document.createElement("button");
+      btn.className = "wt-spawn-btn wt-spawn-profile";
+
+      if (profile.color) {
+        btn.style.borderColor = profile.color;
+        btn.style.color = profile.color;
+      }
+      if (profile.borderStyle) {
+        if (profile.borderStyle === "thick") {
+          btn.style.borderStyle = "solid";
+          btn.style.borderWidth = "2px";
+        } else {
+          btn.style.borderStyle = profile.borderStyle;
+        }
+      }
+
+      if (profile.icon) {
+        const iconSpan = document.createElement("span");
+        iconSpan.className = `codicon codicon-${mapProfileIcon(profile.icon)}`;
+        iconSpan.style.marginRight = "4px";
+        if (profile.color) iconSpan.style.color = profile.color;
+        btn.appendChild(iconSpan);
+      }
+
+      btn.appendChild(document.createTextNode(profile.label));
+      btn.title = `Launch ${profile.label}`;
+      btn.addEventListener("click", () => {
+        this.postMessage({ type: "launchProfile", profileId: profile.profileId });
       });
-      this.tabButtonsEl.appendChild(el);
+      this.tabButtonsEl.appendChild(btn);
     }
+
+    // Launch modal button ("..." opens the full profile launcher)
+    const launchBtn = document.createElement("button");
+    launchBtn.className = "wt-spawn-btn wt-spawn-custom";
+    launchBtn.textContent = "...";
+    launchBtn.title = "Launch profile";
+    launchBtn.setAttribute("aria-label", "Launch profile");
+    launchBtn.addEventListener("click", () => {
+      this.postMessage({ type: "requestLaunchModal" });
+    });
+    this.tabButtonsEl.appendChild(launchBtn);
   }
 
   private updateEmptyState(): void {
@@ -515,14 +514,8 @@ export class TerminalPanel {
 
     input.addEventListener("blur", commit);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        input.blur();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        input.removeEventListener("blur", commit);
-        this.renderTabBar();
-      }
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      else if (e.key === "Escape") { e.preventDefault(); input.removeEventListener("blur", commit); this.renderTabBar(); }
     });
 
     labelEl.textContent = "";
@@ -539,7 +532,6 @@ export class TerminalPanel {
     const [tab] = this.tabs.splice(fromIndex, 1);
     this.tabs.splice(toIndex, 0, tab);
 
-    // Update active index to follow the active tab
     if (this.activeIndex === fromIndex) {
       this.activeIndex = toIndex;
     } else if (fromIndex < this.activeIndex && toIndex >= this.activeIndex) {
@@ -570,72 +562,39 @@ export class TerminalPanel {
       "box-shadow: 0 2px 8px rgba(0,0,0,0.3);";
 
     const items = [
-      {
-        label: "Rename",
-        action: () => {
-          const labelEl = this.tabsContainerEl.children[index]?.querySelector(".wt-tab-label");
-          if (labelEl) this.startInlineRename(index, labelEl as HTMLElement);
-        },
-      },
-      {
-        label: "Close",
-        action: () => this.postMessage({ type: "closeTerminal", sessionId: tab.sessionId }),
-      },
-      {
-        label: "Close Others",
-        action: () => {
-          for (const t of this.tabs) {
-            if (t.sessionId !== tab.sessionId) {
-              this.postMessage({ type: "closeTerminal", sessionId: t.sessionId });
-            }
-          }
-        },
-      },
+      { label: "Rename", action: () => {
+        const labelEl = this.tabsContainerEl.children[index]?.querySelector(".wt-tab-label");
+        if (labelEl) this.startInlineRename(index, labelEl as HTMLElement);
+      }},
+      { label: "Close", action: () => this.postMessage({ type: "closeTerminal", sessionId: tab.sessionId }) },
+      { label: "Close Others", action: () => {
+        for (const t of this.tabs) {
+          if (t.sessionId !== tab.sessionId) this.postMessage({ type: "closeTerminal", sessionId: t.sessionId });
+        }
+      }},
     ];
 
     for (const item of items) {
       const itemEl = document.createElement("div");
       itemEl.textContent = item.label;
-      itemEl.style.cssText =
-        "padding: 4px 16px; cursor: pointer; font-size: 12px; white-space: nowrap;";
-      itemEl.addEventListener("mouseenter", () => {
-        itemEl.style.background = "var(--vscode-menu-selectionBackground)";
-        itemEl.style.color = "var(--vscode-menu-selectionForeground)";
-      });
-      itemEl.addEventListener("mouseleave", () => {
-        itemEl.style.background = "";
-        itemEl.style.color = "";
-      });
-      itemEl.addEventListener("click", () => {
-        menu.remove();
-        item.action();
-      });
+      itemEl.style.cssText = "padding: 4px 16px; cursor: pointer; font-size: 12px; white-space: nowrap;";
+      itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "var(--vscode-menu-selectionBackground)"; itemEl.style.color = "var(--vscode-menu-selectionForeground)"; });
+      itemEl.addEventListener("mouseleave", () => { itemEl.style.background = ""; itemEl.style.color = ""; });
+      itemEl.addEventListener("click", () => { menu.remove(); item.action(); });
       menu.appendChild(itemEl);
     }
 
     document.body.appendChild(menu);
-
     const dismiss = (e: MouseEvent) => {
-      if (!menu.contains(e.target as Node)) {
-        menu.remove();
-        document.removeEventListener("mousedown", dismiss);
-      }
+      if (!menu.contains(e.target as Node)) { menu.remove(); document.removeEventListener("mousedown", dismiss); }
     };
-    // Delay to avoid catching the contextmenu click
-    requestAnimationFrame(() => {
-      document.addEventListener("mousedown", dismiss);
-    });
+    requestAnimationFrame(() => { document.addEventListener("mousedown", dismiss); });
   }
 
   // -------------------------------------------------------------------------
   // Keyboard handling
   // -------------------------------------------------------------------------
 
-  /**
-   * Attach macOS keyboard shortcut handler to a terminal instance.
-   * Intercepts Option/Cmd shortcuts for word/line navigation and sends
-   * the corresponding escape sequences to the PTY via postMessage.
-   */
   private attachTerminalKeyHandler(terminal: Terminal, sessionId: string): void {
     const sendInput = (data: string) => {
       this.postMessage({ type: "terminalInput", sessionId, data });
@@ -644,27 +603,24 @@ export class TerminalPanel {
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (event.type !== "keydown") return true;
 
-      // Option (Alt) key shortcuts
       if (event.altKey && !event.metaKey && !event.ctrlKey) {
         switch (event.key) {
-          case "ArrowLeft":   sendInput("\x1bb");     return false; // word left
-          case "ArrowRight":  sendInput("\x1bf");     return false; // word right
-          case "Backspace":   sendInput("\x1b\x7f");  return false; // delete word backward
-          case "b":           sendInput("\x1bb");     return false; // word backward
-          case "f":           sendInput("\x1bf");     return false; // word forward
-          case "d":           sendInput("\x1bd");     return false; // delete word forward
+          case "ArrowLeft":   sendInput("\x1bb");     return false;
+          case "ArrowRight":  sendInput("\x1bf");     return false;
+          case "Backspace":   sendInput("\x1b\x7f");  return false;
+          case "b":           sendInput("\x1bb");     return false;
+          case "f":           sendInput("\x1bf");     return false;
+          case "d":           sendInput("\x1bd");     return false;
         }
       }
 
-      // Cmd (Meta) key shortcuts
       if (event.metaKey && !event.altKey && !event.ctrlKey) {
         switch (event.key) {
-          case "ArrowLeft":   sendInput("\x01");  return false; // line start (Ctrl-A)
-          case "ArrowRight":  sendInput("\x05");  return false; // line end (Ctrl-E)
+          case "ArrowLeft":   sendInput("\x01");  return false;
+          case "ArrowRight":  sendInput("\x05");  return false;
         }
       }
 
-      // Shift+Enter: literal newline (distinct from Enter submit)
       if (event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey && event.key === "Enter") {
         sendInput("\n");
         return false;
@@ -677,13 +633,11 @@ export class TerminalPanel {
   private handleKeyboard(e: KeyboardEvent): void {
     const isMod = e.metaKey || e.ctrlKey;
 
-    // Cmd/Ctrl+F: toggle search in active terminal
     if (isMod && !e.altKey && !e.shiftKey && e.key === "f") {
       if (this.activeIndex >= 0 && this.activeIndex < this.tabs.length) {
         const activeEl = document.activeElement;
         const tab = this.tabs[this.activeIndex];
-        const termContainer = tab.containerEl;
-        if (termContainer.contains(activeEl) || activeEl === document.body) {
+        if (tab.containerEl.contains(activeEl) || activeEl === document.body) {
           e.preventDefault();
           e.stopPropagation();
           this.toggleSearch();
@@ -697,7 +651,6 @@ export class TerminalPanel {
     const tab = this.tabs[this.activeIndex];
 
     if (this.searchBarVisible) {
-      // Remove search bar
       const bar = this.terminalWrapperEl.querySelector(".wt-search-bar");
       if (bar) bar.remove();
       this.searchBarVisible = false;
@@ -705,7 +658,6 @@ export class TerminalPanel {
       return;
     }
 
-    // Create search bar
     const bar = document.createElement("div");
     bar.className = "wt-search-bar";
     bar.style.cssText =
@@ -723,21 +675,10 @@ export class TerminalPanel {
       "background: var(--vscode-input-background); color: var(--vscode-input-foreground); " +
       "border: 1px solid var(--vscode-input-border); border-radius: 2px; outline: none; width: 180px;";
 
-    input.addEventListener("input", () => {
-      tab.searchAddon.findNext(input.value);
-    });
+    input.addEventListener("input", () => { tab.searchAddon.findNext(input.value); });
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          tab.searchAddon.findPrevious(input.value);
-        } else {
-          tab.searchAddon.findNext(input.value);
-        }
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        this.toggleSearch();
-      }
+      if (e.key === "Enter") { e.preventDefault(); if (e.shiftKey) tab.searchAddon.findPrevious(input.value); else tab.searchAddon.findNext(input.value); }
+      else if (e.key === "Escape") { e.preventDefault(); this.toggleSearch(); }
     });
 
     const closeBtn = document.createElement("button");
@@ -773,14 +714,9 @@ export class TerminalPanel {
     return value || fallback;
   }
 
-  /**
-   * Re-apply theme to all terminals (call on themeChanged).
-   */
   refreshTheme(): void {
     const theme = this.getTheme();
-    for (const tab of this.tabs) {
-      tab.terminal.options.theme = theme;
-    }
+    for (const tab of this.tabs) tab.terminal.options.theme = theme;
   }
 
   // -------------------------------------------------------------------------
@@ -813,12 +749,8 @@ export class TerminalPanel {
 
     terminal.onScroll(scheduleUpdate);
 
-    // xterm's onScroll may not fire for trackpad/wheel scrolling,
-    // so also listen on the viewport element's native scroll event.
     const viewport = containerEl.querySelector(".xterm-viewport");
-    if (viewport) {
-      viewport.addEventListener("scroll", scheduleUpdate, { passive: true });
-    }
+    if (viewport) viewport.addEventListener("scroll", scheduleUpdate, { passive: true });
 
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
