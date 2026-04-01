@@ -163,72 +163,86 @@
         "workTerminal.taskBasePath": {
           "type": "string",
           "default": "2 - Areas/Tasks",
-          "description": "Path containing task folders (priority, todo, active, archive). Supports absolute paths, ~/relative paths, or workspace-relative paths."
+          "description": "Path containing task folders (priority, todo, active, archive). Supports absolute paths, ~/relative paths, or workspace-relative paths.",
+          "scope": "resource"
         },
         "workTerminal.jiraBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Browse URL used to turn Jira keys into clickable external links (e.g. https://your-org.atlassian.net/browse)"
+          "description": "Browse URL used to turn Jira keys into clickable external links (e.g. https://your-org.atlassian.net/browse)",
+          "scope": "window"
         },
         "workTerminal.defaultShell": {
           "type": "string",
           "default": "",
-          "description": "Default shell command. Leave empty to use $SHELL (or COMSPEC on Windows)."
+          "description": "Default shell command. Leave empty to use $SHELL (or COMSPEC on Windows).",
+          "scope": "window"
         },
         "workTerminal.defaultTerminalCwd": {
           "type": "string",
           "default": "~",
-          "description": "Default working directory for new terminals. Use ~ for home directory."
+          "description": "Default working directory for new terminals. Use ~ for home directory.",
+          "scope": "resource"
         },
         "workTerminal.keepSessionsAlive": {
           "type": "boolean",
           "default": true,
-          "description": "Keep terminal sessions alive when the panel is closed. When false, terminals are killed on panel dispose."
+          "description": "Keep terminal sessions alive when the panel is closed. When false, terminals are killed on panel dispose.",
+          "scope": "window"
         },
         "workTerminal.exposeDebugApi": {
           "type": "boolean",
           "default": false,
-          "description": "Expose a debug API for development and troubleshooting."
+          "description": "Expose a debug API for development and troubleshooting.",
+          "scope": "window"
         },
         "workTerminal.claudeCommand": {
           "type": "string",
           "default": "claude",
-          "description": "Command used to launch Claude CLI sessions."
+          "description": "Command used to launch Claude CLI sessions.",
+          "scope": "window"
         },
         "workTerminal.claudeExtraArgs": {
           "type": "string",
           "default": "",
-          "description": "Extra arguments appended to all Claude sessions."
+          "description": "Extra arguments appended to all Claude sessions.",
+          "scope": "window"
         },
         "workTerminal.copilotCommand": {
           "type": "string",
           "default": "gh",
-          "description": "Command used to launch Copilot CLI sessions."
+          "description": "Command used to launch Copilot CLI sessions.",
+          "scope": "window"
         },
         "workTerminal.copilotExtraArgs": {
           "type": "string",
           "default": "",
-          "description": "Extra arguments appended to all Copilot sessions."
+          "description": "Extra arguments appended to all Copilot sessions.",
+          "scope": "window"
         },
         "workTerminal.strandsCommand": {
           "type": "string",
           "default": "",
-          "description": "Command used to launch Strands agent sessions."
+          "description": "Command used to launch Strands agent sessions.",
+          "scope": "window"
         },
         "workTerminal.strandsExtraArgs": {
           "type": "string",
           "default": "",
-          "description": "Extra arguments appended to all Strands sessions."
+          "description": "Extra arguments appended to all Strands sessions.",
+          "scope": "window"
         },
         "workTerminal.additionalAgentContext": {
           "type": "string",
           "default": "",
-          "description": "Additional context appended to all agent prompts."
+          "description": "Additional context appended to all agent prompts.",
+          "scope": "resource"
         },
         "workTerminal.acceptNoResumeHooks": {
           "type": "boolean",
           "default": false,
-          "description": "Accept agent sessions that have no resume hooks configured."
+          "description": "Accept agent sessions that have no resume hooks configured.",
+          "scope": "window"
         }
       }
     },
