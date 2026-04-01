@@ -55,6 +55,33 @@ const ICON_LABELS: Partial<Record<ProfileIcon, string>> = {
   skyscanner: "Skyscanner (branded)",
 };
 
+/**
+ * Map profile icons to Unicode symbols for display in the webview.
+ * (Codicons are not available without loading the font.)
+ */
+const ICON_SYMBOLS: Partial<Record<ProfileIcon, string>> = {
+  terminal: "\u{1F4BB}",
+  bot: "\u{1F916}",
+  brain: "\u{1F9E0}",
+  code: "\u{1F4DD}",
+  rocket: "\u{1F680}",
+  zap: "\u26A1",
+  cog: "\u2699\uFE0F",
+  wrench: "\u{1F527}",
+  shield: "\u{1F6E1}\uFE0F",
+  globe: "\u{1F310}",
+  search: "\u{1F50D}",
+  lightbulb: "\u{1F4A1}",
+  flask: "\u{1F9EA}",
+  book: "\u{1F4D6}",
+  puzzle: "\u{1F9E9}",
+  bee: "\u{1F41D}",
+  claude: "\u2728",
+  copilot: "\u2708\uFE0F",
+  aws: "\u2601\uFE0F",
+  skyscanner: "\u2708\uFE0F",
+};
+
 // ---------------------------------------------------------------------------
 // HTML builders for the webview
 // ---------------------------------------------------------------------------
@@ -75,51 +102,63 @@ export function renderProfileList(profiles: AgentProfile[]): string {
     return `<div class="wt-profile-empty">No profiles configured. Add one to get started.</div>`;
   }
 
-  const rows = profiles.map((p, index) => {
+  const cards = profiles.map((p, index) => {
     const typeBadge = AGENT_TYPE_LABELS[p.agentType] || p.agentType;
     const commandBadge = p.command
-      ? `<span class="wt-profile-cmd-badge" title="Custom command: ${escapeHtml(p.command)}">${escapeHtml(p.command.split("/").pop() || p.command)}</span>`
+      ? `<span class="wt-profile-badge wt-profile-cmd-badge" title="Custom command: ${escapeHtml(p.command)}">${escapeHtml(p.command.split("/").pop() || p.command)}</span>`
       : "";
     const badges = [
-      `<span class="wt-profile-type-badge">${escapeHtml(typeBadge)}</span>`,
-      p.useContext ? `<span class="wt-profile-ctx-badge">ctx</span>` : "",
-      p.button.enabled ? `<span class="wt-profile-button-badge">button</span>` : "",
-      p.paramPassMode !== "launch-only" ? `<span class="wt-profile-param-badge">${escapeHtml(p.paramPassMode)}</span>` : "",
+      `<span class="wt-profile-badge wt-profile-type-badge">${escapeHtml(typeBadge)}</span>`,
+      p.useContext ? `<span class="wt-profile-badge wt-profile-ctx-badge">ctx</span>` : "",
+      p.button.enabled ? `<span class="wt-profile-badge wt-profile-button-badge">button</span>` : "",
+      p.paramPassMode !== "launch-only" ? `<span class="wt-profile-badge wt-profile-param-badge">${escapeHtml(p.paramPassMode)}</span>` : "",
       commandBadge,
     ]
       .filter(Boolean)
       .join("");
 
     const colorSwatch = p.button.color
-      ? `<div class="wt-profile-color-swatch" style="background-color:${escapeHtml(p.button.color)}"></div>`
+      ? `<span class="wt-profile-color-swatch" style="background-color:${escapeHtml(p.button.color)}" title="Button color: ${escapeHtml(p.button.color)}"></span>`
+      : "";
+
+    const iconDisplay = p.button.icon
+      ? `<span class="wt-profile-icon" title="${escapeHtml(ICON_LABELS[p.button.icon] || p.button.icon)}">${ICON_SYMBOLS[p.button.icon] || ""}</span>`
       : "";
 
     const isFirst = index === 0;
     const isLast = index === profiles.length - 1;
 
     return `
-      <div class="wt-profile-row" data-profile-id="${escapeHtml(p.id)}">
-        ${colorSwatch}
-        <div class="wt-profile-info">
-          <div class="wt-profile-name">${escapeHtml(p.name)}</div>
-          <div class="wt-profile-meta">${badges}</div>
+      <div class="wt-profile-card" data-profile-id="${escapeHtml(p.id)}">
+        <div class="wt-profile-card-left">
+          ${colorSwatch}${iconDisplay}
+          <div class="wt-profile-info">
+            <div class="wt-profile-name">${escapeHtml(p.name)}</div>
+            <div class="wt-profile-meta">${badges}</div>
+          </div>
         </div>
-        <div class="wt-profile-reorder">
-          <button class="wt-profile-move-btn" data-action="moveProfileUp" data-profile-id="${escapeHtml(p.id)}" ${isFirst ? "disabled" : ""} title="Move up">&#x25B2;</button>
-          <button class="wt-profile-move-btn" data-action="moveProfileDown" data-profile-id="${escapeHtml(p.id)}" ${isLast ? "disabled" : ""} title="Move down">&#x25BC;</button>
+        <div class="wt-profile-card-actions">
+          <div class="wt-profile-reorder">
+            <button class="wt-profile-action-btn" data-action="moveProfileUp" data-profile-id="${escapeHtml(p.id)}" ${isFirst ? "disabled" : ""} title="Move up">\u25B2</button>
+            <button class="wt-profile-action-btn" data-action="moveProfileDown" data-profile-id="${escapeHtml(p.id)}" ${isLast ? "disabled" : ""} title="Move down">\u25BC</button>
+          </div>
+          <button class="wt-profile-action-btn wt-profile-edit-btn" data-action="editProfile" data-profile-id="${escapeHtml(p.id)}" title="Edit profile">\u270E</button>
+          <button class="wt-profile-action-btn wt-profile-delete-btn" data-action="deleteProfile" data-profile-id="${escapeHtml(p.id)}" title="Delete profile">\u2715</button>
         </div>
-        <button class="wt-profile-edit-btn" data-action="editProfile" data-profile-id="${escapeHtml(p.id)}">Edit</button>
-        <button class="wt-profile-delete-btn" data-action="deleteProfile" data-profile-id="${escapeHtml(p.id)}">Delete</button>
       </div>`;
   });
 
   const toolbar = `
     <div class="wt-profile-toolbar">
-      <button class="wt-profile-toolbar-btn" data-action="importProfiles" title="Import profiles from JSON">Import</button>
-      <button class="wt-profile-toolbar-btn" data-action="exportProfiles" title="Export profiles as JSON">Export</button>
+      <span class="wt-profile-toolbar-title">Agent Profiles</span>
+      <div class="wt-profile-toolbar-actions">
+        <button class="wt-profile-toolbar-btn" data-action="addProfile" title="Add new profile">+ New</button>
+        <button class="wt-profile-toolbar-btn wt-profile-toolbar-btn--secondary" data-action="importProfiles" title="Import profiles from JSON">Import</button>
+        <button class="wt-profile-toolbar-btn wt-profile-toolbar-btn--secondary" data-action="exportProfiles" title="Export profiles as JSON">Export</button>
+      </div>
     </div>`;
 
-  return `${toolbar}<div class="wt-profile-list">${rows.join("")}</div>`;
+  return `${toolbar}<div class="wt-profile-list">${cards.join("")}</div>`;
 }
 
 /**

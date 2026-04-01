@@ -301,6 +301,27 @@ html, body {
   cursor: default;
 }
 
+/* Ingesting indicator */
+.wt-card-is-ingesting {
+  border-left: 2px solid var(--vscode-progressBar-background, #0078d4);
+}
+
+.wt-card-ingesting-badge {
+  display: inline-block;
+  background: rgba(0, 120, 212, 0.15);
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  white-space: nowrap;
+  animation: wt-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes wt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Goal tag */
 .wt-card-goal {
   display: inline-block;
@@ -708,4 +729,446 @@ a.wt-card-source--jira:hover {
   font-size: 13px;
   text-align: center;
   padding: 20px;
+}
+
+/* =============================================================================
+   Profile management
+   ============================================================================= */
+
+/* Overlay + dialog container */
+.wt-profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.wt-profile-dialog {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 16px;
+  max-width: 520px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Empty state */
+.wt-profile-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+}
+
+/* Toolbar */
+.wt-profile-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  margin-bottom: 12px;
+}
+
+.wt-profile-toolbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-profile-toolbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.wt-profile-toolbar-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-focusBorder));
+  border-radius: 3px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.wt-profile-toolbar-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.wt-profile-toolbar-btn--secondary {
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  border-color: var(--vscode-panel-border);
+}
+
+.wt-profile-toolbar-btn--secondary:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-editor-foreground);
+}
+
+/* Profile list */
+.wt-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Profile card */
+.wt-profile-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background: var(--vscode-sideBar-background);
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.wt-profile-card:hover {
+  background: var(--vscode-list-hoverBackground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.wt-profile-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Color swatch */
+.wt-profile-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Icon display */
+.wt-profile-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Profile info (name + badges) */
+.wt-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wt-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wt-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Badges (shared base) */
+.wt-profile-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.wt-profile-type-badge {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.wt-profile-ctx-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.wt-profile-button-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.wt-profile-param-badge {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+
+.wt-profile-cmd-badge {
+  background: var(--vscode-textBlockQuote-background, rgba(255, 255, 255, 0.06));
+  color: var(--vscode-descriptionForeground);
+  text-transform: none;
+  font-weight: 500;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 10px;
+}
+
+/* Card actions */
+.wt-profile-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.wt-profile-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Action buttons (move, edit, delete) */
+.wt-profile-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.wt-profile-action-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-profile-action-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.wt-profile-action-btn:disabled:hover {
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Delete button gets a red hover */
+.wt-profile-delete-btn:hover {
+  background: rgba(229, 62, 62, 0.15);
+  color: #e53e3e;
+}
+
+/* Reorder buttons are smaller */
+.wt-profile-reorder .wt-profile-action-btn {
+  width: 22px;
+  height: 16px;
+  font-size: 9px;
+}
+
+/* =============================================================================
+   Profile editor form
+   ============================================================================= */
+
+.wt-profile-editor {
+  max-width: 480px;
+}
+
+.wt-profile-editor h3 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.wt-profile-editor h4 {
+  margin: 16px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wt-profile-editor label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.wt-profile-editor input[type="text"],
+.wt-profile-editor textarea,
+.wt-profile-editor select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-profile-editor input[type="text"]:focus,
+.wt-profile-editor textarea:focus,
+.wt-profile-editor select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.wt-profile-editor input[type="checkbox"] {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.wt-profile-editor textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.wt-profile-editor-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.wt-profile-editor-buttons button {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+}
+
+.wt-profile-editor-buttons button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.wt-profile-editor-buttons button.mod-cta {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border, var(--vscode-focusBorder));
+}
+
+.wt-profile-editor-buttons button.mod-cta:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+/* =============================================================================
+   Launch dialog
+   ============================================================================= */
+
+.wt-launch-dialog {
+  max-width: 480px;
+}
+
+.wt-launch-dialog h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wt-launch-dialog p {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.wt-launch-dialog label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.wt-launch-dialog input[type="text"],
+.wt-launch-dialog textarea,
+.wt-launch-dialog select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wt-launch-dialog input[type="text"]:focus,
+.wt-launch-dialog textarea:focus,
+.wt-launch-dialog select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.wt-launch-dialog textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.wt-launch-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.wt-launch-dialog-buttons button {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+}
+
+.wt-launch-dialog-buttons button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.wt-launch-dialog-buttons button.mod-cta {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border, var(--vscode-focusBorder));
+}
+
+.wt-launch-dialog-buttons button.mod-cta:hover {
+  background: var(--vscode-button-hoverBackground);
 }

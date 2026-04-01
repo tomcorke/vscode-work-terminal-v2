@@ -82,9 +82,7 @@ function getOrCreateOverlay(): HTMLElement {
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "profile-overlay";
-    overlay.style.cssText =
-      "position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; " +
-      "justify-content: center; background: rgba(0,0,0,0.4);";
+    overlay.className = "wt-profile-overlay";
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay!.remove();
     });
@@ -95,8 +93,7 @@ function getOrCreateOverlay(): HTMLElement {
 }
 
 function setOverlayContent(overlay: HTMLElement, html: string): void {
-  overlay.innerHTML =
-    `<div style="background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;">${html}</div>`;
+  overlay.innerHTML = `<div class="wt-profile-dialog">${html}</div>`;
 }
 
 function handleProfileList(message: Extract<ExtensionMessage, { type: "profileList" }>): void {
@@ -113,6 +110,11 @@ function handleProfileAction(e: Event): void {
   const profileId = target.dataset.profileId;
 
   switch (action) {
+    case "addProfile": {
+      const overlay = getOrCreateOverlay();
+      setOverlayContent(overlay, renderProfileEditor(null));
+      break;
+    }
     case "editProfile": {
       if (!profileId) break;
       const profile = cachedProfiles.find((p) => p.id === profileId);
@@ -129,7 +131,6 @@ function handleProfileAction(e: Event): void {
       break;
     }
     case "cancelEdit": {
-      // Return to the profile list
       postMessage({ type: "getProfiles" });
       break;
     }
