@@ -52,7 +52,7 @@ describe("TaskParser", () => {
   describe("parseFromContent", () => {
     it("extracts all fields from valid frontmatter", () => {
       const content = makeFullFrontmatter();
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "2 - Areas/Tasks/active/task.md",
         "task.md",
@@ -68,7 +68,7 @@ describe("TaskParser", () => {
 
     it("returns null for file outside task folders", () => {
       const content = makeFullFrontmatter({ state: "unknown" });
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "3 - Resources/notes.md",
         "notes.md",
@@ -81,7 +81,7 @@ describe("TaskParser", () => {
 
     it("falls back to path-derived state when frontmatter state is invalid", () => {
       const content = makeFullFrontmatter({ state: "invalid" });
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "2 - Areas/Tasks/active/task.md",
         "task.md",
@@ -95,7 +95,7 @@ describe("TaskParser", () => {
 
     it("falls back to folder state when taskBasePath has a trailing slash", () => {
       const content = makeFullFrontmatter({ state: "invalid" });
-      const parser = new TaskParser("", {
+      const parser = new TaskParser("2 - Areas/Tasks/", {
         "adapter.taskBasePath": "2 - Areas/Tasks/",
       });
       const item = parser.parseFromContent(
@@ -111,7 +111,7 @@ describe("TaskParser", () => {
 
     it("uses basename when title is missing", () => {
       const content = "---\nstate: active\n---\nBody";
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "2 - Areas/Tasks/active/my-task.md",
         "my-task.md",
@@ -124,7 +124,7 @@ describe("TaskParser", () => {
 
     it("uses file path as the ID when frontmatter id is missing", () => {
       const content = makeFullFrontmatter({ id: "" });
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "2 - Areas/Tasks/active/task-without-id.md",
         "task-without-id.md",
@@ -138,7 +138,7 @@ describe("TaskParser", () => {
 
     it("defaults priority.score to 0 when missing", () => {
       const content = "---\nstate: active\ntitle: Test\n---\nBody";
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parseFromContent(
         "2 - Areas/Tasks/active/task.md",
         "task.md",
@@ -152,7 +152,7 @@ describe("TaskParser", () => {
 
   describe("parse (FileRef fallback)", () => {
     it("returns fallback task from path for files in task folders", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parse({
         uri: "file:///2%20-%20Areas/Tasks/active/task.md",
         path: "2 - Areas/Tasks/active/task.md",
@@ -165,7 +165,7 @@ describe("TaskParser", () => {
     });
 
     it("returns null for files outside task folders", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const item = parser.parse({
         uri: "file:///other/file.md",
         path: "other/file.md",
@@ -178,7 +178,7 @@ describe("TaskParser", () => {
 
   describe("groupByColumn", () => {
     it("excludes abandoned tasks", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const items = [
         {
           id: "1",
@@ -203,7 +203,7 @@ describe("TaskParser", () => {
     });
 
     it("sorts by score descending", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const items = [
         {
           id: "1",
@@ -226,7 +226,7 @@ describe("TaskParser", () => {
     });
 
     it("uses updated timestamp as tiebreaker", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       const items = [
         {
           id: "1",
@@ -250,17 +250,17 @@ describe("TaskParser", () => {
 
   describe("isItemFile", () => {
     it("matches files under basePath", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       expect(parser.isItemFile("2 - Areas/Tasks/active/my-task.md")).toBe(true);
     });
 
     it("rejects files outside basePath", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       expect(parser.isItemFile("3 - Resources/notes.md")).toBe(false);
     });
 
     it("rejects non-md files", () => {
-      const parser = new TaskParser("", defaultSettings);
+      const parser = new TaskParser("2 - Areas/Tasks", defaultSettings);
       expect(parser.isItemFile("2 - Areas/Tasks/active/data.json")).toBe(false);
     });
   });

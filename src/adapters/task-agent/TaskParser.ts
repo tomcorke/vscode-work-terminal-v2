@@ -24,13 +24,11 @@ export class TaskParser implements WorkItemParser {
   private backfillPromisesByPath = new Map<string, Promise<WorkItem | null>>();
 
   constructor(
-    _basePath: string,
+    basePath: string,
     private settings: Record<string, unknown>,
   ) {
-    const configPath = this.settings["adapter.taskBasePath"];
-    this.basePath = this.normaliseBasePath(
-      typeof configPath === "string" ? configPath : "2 - Areas/Tasks",
-    );
+    // Use the resolved absolute basePath from WorkItemService
+    this.basePath = this.normaliseBasePath(basePath);
   }
 
   parse(file: FileRef): WorkItem | null {
