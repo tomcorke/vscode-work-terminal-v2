@@ -272,6 +272,63 @@ html, body {
   text-transform: capitalize;
 }
 
+/* Score color coding */
+.wt-score-high {
+  background: #e53e3e;
+  color: white;
+}
+
+.wt-score-medium {
+  background: #d69e2e;
+  color: white;
+}
+
+.wt-score-low {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+/* Blocker badge */
+.wt-card-blocker {
+  display: inline-block;
+  background: #e5484d;
+  color: white;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Goal tag */
+.wt-card-goal {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  white-space: nowrap;
+  text-transform: capitalize;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Jira source badge link */
+.wt-card-source--jira {
+  background: #0052cc;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.wt-card-source--jira:hover {
+  background: #0065ff;
+  text-decoration: underline;
+}
+
 /* Section label inside header */
 .wt-section-label {
   flex: 1;
@@ -281,7 +338,7 @@ html, body {
 }
 
 /* =============================================================================
-   Context menu (tab right-click)
+   Context menu (card & tab right-click)
    ============================================================================= */
 
 .wt-context-menu {
@@ -294,6 +351,24 @@ html, body {
   padding: 4px 0;
   min-width: 140px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.wt-context-menu-item {
+  padding: 4px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wt-context-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground);
+  color: var(--vscode-menu-selectionForeground);
+}
+
+.wt-context-menu-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border));
 }
 
 /* =============================================================================

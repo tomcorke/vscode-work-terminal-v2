@@ -29,7 +29,10 @@ export type WebviewMessage =
   | { type: "importProfiles" }
   | { type: "exportProfiles" }
   | { type: "moveProfileUp"; profileId: string }
-  | { type: "moveProfileDown"; profileId: string };
+  | { type: "moveProfileDown"; profileId: string }
+  | { type: "copyToClipboard"; text: string }
+  | { type: "contextMenuMove"; itemId: string; toColumn: string }
+  | { type: "contextMenuDelete"; itemId: string };
 
 // ---- Extension -> Webview ----
 
@@ -39,6 +42,11 @@ export interface WorkItemDTO {
   column: string;
   source?: string;
   meta?: Record<string, string>;
+  goals?: string[];
+  hasBlocker?: boolean;
+  blockerContext?: string;
+  jiraKey?: string;
+  jiraBaseUrl?: string;
 }
 
 export interface TerminalSessionInfo {
