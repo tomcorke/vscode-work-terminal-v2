@@ -110,6 +110,11 @@
         "category": "Work Terminal"
       },
       {
+        "command": "workTerminal.rebuildNodePty",
+        "title": "Rebuild node-pty Native Module",
+        "category": "Work Terminal"
+      },
+      {
         "command": "workTerminal.hookStatus",
         "title": "Claude Hooks: Show Status",
         "category": "Work Terminal"

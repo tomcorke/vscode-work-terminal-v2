@@ -48,6 +48,8 @@ pnpm build
 
 Press **F5** in VS Code to launch an Extension Development Host with the extension loaded. The `watch` script provides incremental rebuilds during development.
 
+If the Extension Development Host reports that `node-pty` could not load `pty.node`, run **Work Terminal: Rebuild node-pty Native Module** from the command palette, then reload the window.
+
 ### Build output
 
 esbuild produces three bundles in `dist/`:
