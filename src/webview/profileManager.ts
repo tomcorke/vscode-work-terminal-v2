@@ -155,6 +155,7 @@ export function renderProfileList(profiles: AgentProfile[]): string {
         <button class="wt-profile-toolbar-btn" data-action="addProfile" title="Add new profile">+ New</button>
         <button class="wt-profile-toolbar-btn wt-profile-toolbar-btn--secondary" data-action="importProfiles" title="Import profiles from JSON">Import</button>
         <button class="wt-profile-toolbar-btn wt-profile-toolbar-btn--secondary" data-action="exportProfiles" title="Export profiles as JSON">Export</button>
+        <button class="wt-profile-close-btn" data-action="closeOverlay" title="Close">✕</button>
       </div>
     </div>`;
 
@@ -228,8 +229,15 @@ export function renderProfileEditor(profile: AgentProfile | null): string {
       </label>
 
       <label>Context prompt template
-        <textarea name="contextPrompt" placeholder="Placeholders: $title, $state, $filePath, $id">${escapeHtml(p.contextPrompt)}</textarea>
+        <textarea name="contextPrompt" placeholder="Enter context prompt...">${escapeHtml(p.contextPrompt)}</textarea>
       </label>
+      <div class="wt-field-hint">
+        Available variables:
+        <code>$title</code> - work item title,
+        <code>$state</code> - work item state,
+        <code>$filePath</code> - file path,
+        <code>$id</code> - work item ID
+      </div>
 
       <h4>Tab bar button</h4>
 
@@ -251,7 +259,11 @@ export function renderProfileEditor(profile: AgentProfile | null): string {
       </label>
 
       <label>Button color
-        <input type="text" name="buttonColor" value="${escapeHtml(p.button.color || "")}" placeholder="(default)" />
+        <div class="wt-color-input-row">
+          <input type="text" name="buttonColor" value="${escapeHtml(p.button.color || "")}" placeholder="(default)" />
+          <input type="color" name="buttonColorPicker" value="${escapeHtml(p.button.color || "#000000")}" class="wt-color-picker" title="Pick a color" />
+          <span class="wt-color-preview-swatch" style="background-color:${escapeHtml(p.button.color || "transparent")}"></span>
+        </div>
       </label>
 
       <div class="wt-profile-editor-buttons">
