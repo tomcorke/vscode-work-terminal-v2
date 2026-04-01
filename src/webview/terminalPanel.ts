@@ -184,6 +184,18 @@ export class TerminalPanel {
   }
 
   // -------------------------------------------------------------------------
+  // Debug accessors (used by debugApi.ts)
+  // -------------------------------------------------------------------------
+
+  /** Snapshot of all tab metadata (excludes live Terminal instances). */
+  getTabSnapshots(): Array<{ sessionId: string; label: string; sessionType: string; itemId: string | null; agentState: string }> {
+    return this.tabs.map((t) => ({ sessionId: t.sessionId, label: t.label, sessionType: t.sessionType, itemId: t.itemId, agentState: t.agentState }));
+  }
+
+  /** Current active tab index. */
+  getActiveIndex(): number { return this.activeIndex; }
+
+  // -------------------------------------------------------------------------
   // Terminal lifecycle
   // -------------------------------------------------------------------------
 

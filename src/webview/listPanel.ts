@@ -69,6 +69,13 @@ export class ListPanel {
   // Public API
   // ---------------------------------------------------------------------------
 
+  /** Read-only snapshot of items (used by debugApi.ts). */
+  getItems(): WorkItemDTO[] { return this.state.items; }
+  /** Read-only snapshot of columns (used by debugApi.ts). */
+  getColumns(): string[] { return this.state.columns; }
+  /** Read-only snapshot of session counts (used by debugApi.ts). */
+  getSessionCounts(): Map<string, SessionInfo> { return this.state.sessionCounts; }
+
   updateItems(items: WorkItemDTO[], columns: string[]): void {
     this.state.items = items;
     this.state.columns = columns;

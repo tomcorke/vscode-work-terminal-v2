@@ -438,6 +438,11 @@ export class WorkTerminalPanel {
       config.get<boolean>("acceptNoResumeHooks", false),
     );
 
+    this.postMessage({
+      type: "debugApiState",
+      enabled: config.get<boolean>("exposeDebugApi", false),
+    });
+
     await this._refreshItems();
   }
 
@@ -453,6 +458,9 @@ export class WorkTerminalPanel {
         this._postResumeItemIds();
         const cfg = vscode.workspace.getConfiguration("workTerminal");
         this._hookBannerService.start(cfg.get<boolean>("acceptNoResumeHooks", false));
+        if (cfg.get<boolean>("exposeDebugApi", false)) {
+          this.postMessage({ type: "debugApiState", enabled: true });
+        }
         break;
       }
       case "itemSelected":
