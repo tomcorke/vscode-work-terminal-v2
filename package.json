@@ -163,7 +163,7 @@
         "workTerminal.taskBasePath": {
           "type": "string",
           "default": "2 - Areas/Tasks",
-          "description": "Workspace path containing task folders (priority, todo, active, archive)"
+          "description": "Path containing task folders (priority, todo, active, archive). Supports absolute paths, ~/relative paths, or workspace-relative paths."
         },
         "workTerminal.jiraBaseUrl": {
           "type": "string",

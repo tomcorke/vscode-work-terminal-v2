@@ -171,13 +171,14 @@ export class WorkTerminalPanel {
     const config = vscode.workspace.getConfiguration("workTerminal");
     const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
 
-    // Resolve base path against workspace (only if relative)
+    // Resolve base path: expand ~ first, then check if absolute
+    const expandedBase = expandTilde(basePath);
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const resolvedBase = path.isAbsolute(basePath)
-      ? basePath
+    const resolvedBase = path.isAbsolute(expandedBase)
+      ? expandedBase
       : workspaceFolder
-        ? path.join(workspaceFolder.uri.fsPath, basePath)
-        : basePath;
+        ? path.join(workspaceFolder.uri.fsPath, expandedBase)
+        : expandedBase;
     console.log("[work-terminal] initServices: resolvedBase =", resolvedBase);
 
     const settings: Record<string, unknown> = {
@@ -313,12 +314,13 @@ export class WorkTerminalPanel {
     const config = vscode.workspace.getConfiguration("workTerminal");
     const basePath = config.get<string>("taskBasePath", "2 - Areas/Tasks");
 
+    const expandedBase = expandTilde(basePath);
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const resolvedBase = path.isAbsolute(basePath)
-      ? basePath
+    const resolvedBase = path.isAbsolute(expandedBase)
+      ? expandedBase
       : workspaceFolder
-        ? path.join(workspaceFolder.uri.fsPath, basePath)
-        : basePath;
+        ? path.join(workspaceFolder.uri.fsPath, expandedBase)
+        : expandedBase;
 
     const settings: Record<string, unknown> = {
       "adapter.taskBasePath": resolvedBase,
