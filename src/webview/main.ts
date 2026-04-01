@@ -46,6 +46,9 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       break;
     case "agentStateChanged":
       terminalPanel?.updateAgentState(message.sessionId, message.state);
+      if (listPanel && message.itemId) {
+        listPanel.setAgentState(message.itemId, message.state as "active" | "idle" | "waiting" | null, message.idleSince);
+      }
       break;
     case "sessionStateChanged":
       if (listPanel) {

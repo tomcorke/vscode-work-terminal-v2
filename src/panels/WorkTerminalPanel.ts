@@ -42,6 +42,8 @@ export class WorkTerminalPanel {
   private _profileManager: AgentProfileManager | null = null;
   private readonly _sessionTrackers = new Map<string, AgentSessionTracker>();
   private readonly _hookBannerService = new HookBannerService();
+  /** Tracks when each item last entered idle state (ms timestamp, keyed by itemId). */
+  private readonly _idleSinceMap = new Map<string, number>();
 
   /** URI of the detail editor tab opened by the extension (null if none). */
   private _detailEditorUri: vscode.Uri | null = null;
@@ -109,7 +111,19 @@ export class WorkTerminalPanel {
       this._postResumeItemIds();
     };
     this._terminalManager.onAgentStateChanged = (sessionId, state) => {
-      this.postMessage({ type: "agentStateChanged", sessionId, state });
+      const itemId = this._getItemIdForSession(sessionId) ?? undefined;
+      let idleSince: number | undefined;
+      if (itemId) {
+        if (state === "idle") {
+          if (!this._idleSinceMap.has(itemId)) {
+            this._idleSinceMap.set(itemId, Date.now());
+          }
+          idleSince = this._idleSinceMap.get(itemId);
+        } else {
+          this._idleSinceMap.delete(itemId);
+        }
+      }
+      this.postMessage({ type: "agentStateChanged", sessionId, state, itemId, idleSince });
     };
     this._terminalManager.onRenamed = (sessionId, newLabel) => {
       // Allow adapter to transform the detected label
