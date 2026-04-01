@@ -177,6 +177,20 @@ export class SessionManager {
   }
 
   /**
+   * Get the set of item IDs that have resumable closed sessions.
+   */
+  getResumableItemIds(): Set<string> {
+    return this.recentlyClosed.getResumableItemIds();
+  }
+
+  /**
+   * Get the most recent closed session entry for a specific item.
+   */
+  getClosedEntryForItem(itemId: string): ClosedSessionEntry | null {
+    return this.recentlyClosed.getForItem(itemId);
+  }
+
+  /**
    * Get persisted sessions for a specific item.
    */
   async getPersistedSessionsForItem(

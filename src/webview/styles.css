@@ -351,6 +351,24 @@ html, body {
   cursor: default;
 }
 
+/* Resume badge */
+.wt-resume-badge {
+  display: inline-block;
+  background: rgba(0, 120, 212, 0.15);
+  color: var(--vscode-textLink-foreground, #3794ff);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wt-resume-badge:hover {
+  background: rgba(0, 120, 212, 0.3);
+}
+
 /* Ingesting indicator */
 .wt-card-is-ingesting {
   border-left: 2px solid var(--vscode-progressBar-background, #0078d4);

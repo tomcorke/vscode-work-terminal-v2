@@ -37,7 +37,8 @@ export type WebviewMessage =
   | { type: "contextMenuDelete"; itemId: string }
   | { type: "doneAndCloseSessions"; itemId: string }
   | { type: "moveToTop"; itemId: string }
-  | { type: "requestLaunchModal" };
+  | { type: "requestLaunchModal" }
+  | { type: "resumeItem"; itemId: string };
 
 // ---- Extension -> Webview ----
 
@@ -95,4 +96,5 @@ export type ExtensionMessage =
   | { type: "addPlaceholder"; placeholderId: string; title: string; column: string }
   | { type: "resolvePlaceholder"; placeholderId: string; realId: string }
   | { type: "failPlaceholder"; placeholderId: string }
-  | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] };
+  | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] }
+  | { type: "resumeItemIds"; itemIds: string[] };
