@@ -100,4 +100,5 @@ export type ExtensionMessage =
   | { type: "failPlaceholder"; placeholderId: string }
   | { type: "buttonProfiles"; profiles: ButtonProfileInfo[] }
   | { type: "resumeItemIds"; itemIds: string[] }
-  | { type: "hookBannerState"; visible: boolean; message: string };
+  | { type: "hookBannerState"; visible: boolean; message: string }
+  | { type: "debugApiState"; enabled: boolean };

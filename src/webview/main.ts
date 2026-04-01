@@ -3,6 +3,7 @@ import type { WebviewMessage, ExtensionMessage } from "./messages";
 import { ListPanel } from "./listPanel";
 import { TerminalPanel } from "./terminalPanel";
 import { renderProfileList, renderProfileEditor } from "./profileManager";
+import { installDebugApi, removeDebugApi } from "./debugApi";
 import type { AgentProfile, AgentType, ParamPassMode, ProfileIcon, BorderStyle } from "../core/agents/types";
 
 const vscode: WebviewApi = acquireVsCodeApi();
@@ -95,6 +96,13 @@ window.addEventListener("message", (event: MessageEvent<ExtensionMessage>) => {
       break;
     case "focusFilter":
       showFilter();
+      break;
+    case "debugApiState":
+      if (message.enabled && listPanel && terminalPanel) {
+        installDebugApi(listPanel, terminalPanel);
+      } else {
+        removeDebugApi();
+      }
       break;
     default:
       break;
