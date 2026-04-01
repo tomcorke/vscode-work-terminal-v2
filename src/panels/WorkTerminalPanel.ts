@@ -128,8 +128,7 @@ export class WorkTerminalPanel {
         }
       }
       const agentMsg: ExtensionMessage = { type: "agentStateChanged", sessionId, state, itemId, idleSince };
-      this.postMessage(agentMsg);
-      this._postToSidebar(agentMsg);
+      this._broadcast(agentMsg);
     };
     this._terminalManager.onRenamed = (sessionId, newLabel) => {
       // Allow adapter to transform the detected label
@@ -354,6 +353,15 @@ export class WorkTerminalPanel {
   }
 
   /**
+   * Post a message to both the main panel and the sidebar webview.
+   * Use this for messages that both views need (session state, item changes, etc.).
+   */
+  private _broadcast(message: ExtensionMessage): void {
+    this.postMessage(message);
+    this._postToSidebar(message);
+  }
+
+  /**
    * Handle a message forwarded from the sidebar webview.
    * Re-uses the same handler as the main panel's message processing.
    */
@@ -386,16 +394,14 @@ export class WorkTerminalPanel {
       return { id: sid, label: info?.label ?? "", kind };
     });
     const msg: ExtensionMessage = { type: "sessionStateChanged", itemId, sessions };
-    this.postMessage(msg);
-    this._postToSidebar(msg);
+    this._broadcast(msg);
   }
 
   private _postResumeItemIds(): void {
     if (!this._sessionManager) return;
     const ids = this._sessionManager.getResumableItemIds();
     const msg: ExtensionMessage = { type: "resumeItemIds", itemIds: [...ids] };
-    this.postMessage(msg);
-    this._postToSidebar(msg);
+    this._broadcast(msg);
   }
 
   // ---------------------------------------------------------------------------
@@ -679,47 +685,40 @@ export class WorkTerminalPanel {
     const placeholderId = `__pending_${Date.now()}`;
     const targetColumn = column || this._adapter!.config.creationColumns[0]?.id || "";
     const phMsg: ExtensionMessage = { type: "addPlaceholder", placeholderId, title, column: targetColumn };
-    this.postMessage(phMsg);
-    this._postToSidebar(phMsg);
+    this._broadcast(phMsg);
 
     let result: Awaited<ReturnType<typeof this._workItemService.createItem>>;
     try {
       result = await this._workItemService.createItem(title, column);
     } catch {
       const failMsg: ExtensionMessage = { type: "failPlaceholder", placeholderId };
-      this.postMessage(failMsg);
-      this._postToSidebar(failMsg);
+      this._broadcast(failMsg);
       return;
     }
 
     // Resolve placeholder to real card
     if (result) {
       const resolveMsg: ExtensionMessage = { type: "resolvePlaceholder", placeholderId, realId: result.id };
-      this.postMessage(resolveMsg);
-      this._postToSidebar(resolveMsg);
+      this._broadcast(resolveMsg);
     } else {
       const failMsg: ExtensionMessage = { type: "failPlaceholder", placeholderId };
-      this.postMessage(failMsg);
-      this._postToSidebar(failMsg);
+      this._broadcast(failMsg);
     }
 
     await this._refreshItems();
 
     if (result && result.enrichmentDone) {
       const ingestMsg: ExtensionMessage = { type: "setIngesting", itemId: result.id };
-      this.postMessage(ingestMsg);
-      this._postToSidebar(ingestMsg);
+      this._broadcast(ingestMsg);
       result.enrichmentDone.then(
         () => {
           const clearMsg: ExtensionMessage = { type: "clearIngesting", itemId: result.id };
-          this.postMessage(clearMsg);
-          this._postToSidebar(clearMsg);
+          this._broadcast(clearMsg);
           this._refreshItems();
         },
         () => {
           const clearMsg: ExtensionMessage = { type: "clearIngesting", itemId: result.id };
-          this.postMessage(clearMsg);
-          this._postToSidebar(clearMsg);
+          this._broadcast(clearMsg);
         },
       );
     }

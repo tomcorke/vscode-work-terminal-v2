@@ -10,9 +10,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "workTerminal.sidebarView";
 
   private _view: vscode.WebviewView | undefined;
+  private _ready = false;
   private _items: WorkItemDTO[] = [];
   private _columns: string[] = [];
   private _pendingMessages: ExtensionMessage[] = [];
+
+  /** Callback to forward messages to the main panel. Set by extension.ts. */
+  public onForwardToPanel: ((message: WebviewMessage) => void) | null = null;
 
   constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -22,6 +26,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken,
   ): void {
     this._view = webviewView;
+    this._ready = false;
 
     webviewView.webview.options = {
       enableScripts: true,
@@ -35,6 +40,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message: WebviewMessage) => {
       switch (message.type) {
         case "ready":
+          this._ready = true;
           this._sendItems();
           // Flush any messages that arrived before webview was ready
           for (const msg of this._pendingMessages) {
@@ -71,20 +77,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     webviewView.onDidDispose(() => {
       this._view = undefined;
+      this._ready = false;
     });
   }
 
   /**
    * Forward a webview message from the sidebar to the main panel.
+   * Opens the panel first if it is not already open, ensuring sidebar
+   * actions (move, delete, drag-drop, etc.) are never silently dropped.
    */
-  private _forwardToPanel(message: WebviewMessage): void {
-    // Lazy import to avoid circular dependency
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WorkTerminalPanel } = require("./WorkTerminalPanel");
-    const panel = WorkTerminalPanel.current;
-    if (panel) {
-      panel.handleSidebarMessage(message);
-    }
+  private async _forwardToPanel(message: WebviewMessage): Promise<void> {
+    if (!this.onForwardToPanel) return;
+
+    // Ensure the panel is open before forwarding mutating actions
+    await vscode.commands.executeCommand("workTerminal.openPanel");
+
+    this.onForwardToPanel(message);
   }
 
   /**
@@ -100,7 +108,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
    * Post a typed message to the sidebar webview.
    */
   postMessage(message: ExtensionMessage): void {
-    if (this._view) {
+    if (this._view && this._ready) {
       this._view.webview.postMessage(message);
     } else {
       this._pendingMessages.push(message);

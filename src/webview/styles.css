@@ -35,16 +35,6 @@ html, body {
   background: var(--vscode-editor-background);
 }
 
-/* Legacy class alias for right-panel (kept for compatibility) */
-.wt-right-panel {
-  flex: 1;
-  min-width: 300px;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: var(--vscode-editor-background);
-}
 
 /* =============================================================================
    Toolbar
