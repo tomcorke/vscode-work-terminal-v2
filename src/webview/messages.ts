@@ -2,6 +2,8 @@
  * Shared message types between extension host and webview.
  */
 
+import type { AgentProfile } from "../core/agents/types";
+
 // ---- Webview -> Extension ----
 
 export type WebviewMessage =
@@ -18,7 +20,12 @@ export type WebviewMessage =
   | { type: "renameTerminal"; sessionId: string; label: string }
   | { type: "filterChanged"; query: string }
   | { type: "dragDrop"; itemId: string; toColumn: string; index: number }
-  | { type: "reopenClosedTerminal" };
+  | { type: "reopenClosedTerminal" }
+  | { type: "getProfiles" }
+  | { type: "saveProfile"; profile: AgentProfile }
+  | { type: "deleteProfile"; profileId: string }
+  | { type: "reorderProfiles"; orderedIds: string[] }
+  | { type: "launchProfile"; profileId: string; itemId?: string; cwdOverride?: string; labelOverride?: string; extraArgs?: string };
 
 // ---- Extension -> Webview ----
 
@@ -47,4 +54,7 @@ export type ExtensionMessage =
       itemId: string;
       sessions: Array<{ id: string; label: string; kind: "shell" | "agent" }>;
     }
-  | { type: "themeChanged" };
+  | { type: "themeChanged" }
+  | { type: "profileList"; profiles: AgentProfile[] }
+  | { type: "profileSaved"; profile: AgentProfile }
+  | { type: "profileDeleted"; profileId: string };

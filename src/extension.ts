@@ -65,6 +65,24 @@ export function activate(context: vscode.ExtensionContext) {
       if (!panel.sessionManager) {
         await panel.initSessionManager(context);
       }
+      // Initialize profile manager if not already done
+      if (!panel.profileManager) {
+        await panel.initProfileManager(context.globalState);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.manageProfiles", () => {
+      const panel = WorkTerminalPanel.current;
+      if (!panel?.profileManager) {
+        vscode.window.showInformationMessage("Open the Work Terminal panel first.");
+        return;
+      }
+      panel.postMessage({
+        type: "profileList",
+        profiles: panel.profileManager.getProfiles(),
+      });
     })
   );
 

@@ -8,6 +8,10 @@ import type { AdapterBundle } from "../core/interfaces";
 import { TerminalManager } from "../terminal/TerminalManager";
 import type { SessionType } from "../core/session/types";
 import { SessionManager } from "../session/SessionManager";
+import { AgentProfileManager } from "../agents/AgentProfileManager";
+import { AgentSessionTracker } from "../agents/AgentSessionTracker";
+import { agentTypeToSessionType } from "../core/agents/types";
+import type { AgentProfile } from "../core/agents/types";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -25,6 +29,8 @@ export class WorkTerminalPanel {
   private _adapter: AdapterBundle | null = null;
   private readonly _terminalManager: TerminalManager;
   private _sessionManager: SessionManager | null = null;
+  private _profileManager: AgentProfileManager | null = null;
+  private readonly _sessionTrackers = new Map<string, AgentSessionTracker>();
 
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
@@ -129,6 +135,18 @@ export class WorkTerminalPanel {
   }
 
   /**
+   * Initialize the agent profile manager.
+   */
+  async initProfileManager(globalState: vscode.Memento): Promise<void> {
+    this._profileManager = new AgentProfileManager(globalState);
+    await this._profileManager.load();
+  }
+
+  get profileManager(): AgentProfileManager | null {
+    return this._profileManager;
+  }
+
+  /**
    * Initialize the work item service and file watcher with the given adapter.
    */
   async initServices(
@@ -180,6 +198,11 @@ export class WorkTerminalPanel {
     this._sessionManager?.deactivate().catch((err) => {
       console.error("[work-terminal] Session persist on dispose failed:", err);
     });
+    this._profileManager?.dispose();
+    for (const tracker of this._sessionTrackers.values()) {
+      tracker.dispose();
+    }
+    this._sessionTrackers.clear();
     this._fileWatcher?.dispose();
     this._terminalManager.disposeAll();
     this._panel.dispose();
@@ -256,6 +279,21 @@ export class WorkTerminalPanel {
         break;
       case "reopenClosedTerminal":
         this._handleReopenClosedTerminal();
+        break;
+      case "getProfiles":
+        this._handleGetProfiles();
+        break;
+      case "saveProfile":
+        this._handleSaveProfile(message.profile);
+        break;
+      case "deleteProfile":
+        this._handleDeleteProfile(message.profileId);
+        break;
+      case "reorderProfiles":
+        this._handleReorderProfiles(message.orderedIds);
+        break;
+      case "launchProfile":
+        this._handleLaunchProfile(message.profileId, message.itemId);
         break;
       default:
         break;
@@ -345,6 +383,49 @@ export class WorkTerminalPanel {
       command: entry.command,
       args: entry.commandArgs,
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Profile management handlers
+  // ---------------------------------------------------------------------------
+
+  private _handleGetProfiles(): void {
+    if (!this._profileManager) return;
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  private async _handleSaveProfile(profile: AgentProfile): Promise<void> {
+    if (!this._profileManager) return;
+    const existing = this._profileManager.getProfile(profile.id);
+    if (existing) {
+      await this._profileManager.updateProfile(profile.id, profile);
+    } else {
+      await this._profileManager.addProfile(profile);
+    }
+    this.postMessage({ type: "profileSaved", profile });
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  private async _handleDeleteProfile(profileId: string): Promise<void> {
+    if (!this._profileManager) return;
+    await this._profileManager.deleteProfile(profileId);
+    this.postMessage({ type: "profileDeleted", profileId });
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  private async _handleReorderProfiles(orderedIds: string[]): Promise<void> {
+    if (!this._profileManager) return;
+    await this._profileManager.reorderProfiles(orderedIds);
+    this.postMessage({ type: "profileList", profiles: this._profileManager.getProfiles() });
+  }
+
+  private _handleLaunchProfile(profileId: string, itemId?: string): void {
+    if (!this._profileManager) return;
+    const profile = this._profileManager.getProfile(profileId);
+    if (!profile) return;
+
+    const sessionType = agentTypeToSessionType(profile.agentType, profile.useContext);
+    this._terminalManager.createTerminal({ sessionType, itemId });
   }
 
   // ---------------------------------------------------------------------------

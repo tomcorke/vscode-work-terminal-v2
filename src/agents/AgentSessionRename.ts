@@ -1,0 +1,69 @@
+/**
+ * Monitor Claude CLI output for session rename events.
+ *
+ * Data may arrive split across chunks, so we buffer partial lines.
+ * Uses StringDecoder to handle multi-byte UTF-8 characters (like the
+ * box-drawing char in Claude's rename output) split across chunk boundaries.
+ */
+import { StringDecoder } from "string_decoder";
+
+/** Strip ANSI escape codes from a string. */
+function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?(?:\x07|\x1b\\)|\x1b[()][0-2AB]/g, "");
+}
+
+export class AgentSessionRename {
+  private decoder = new StringDecoder("utf8");
+  private lineBuffer = "";
+  private renamePattern = /^\s*[^\w]*Session renamed to:\s*(.+?)\s*$/;
+
+  /** Called when a rename is detected. */
+  onRename?: (newLabel: string) => void;
+
+  /** Optional hook for adapters to transform the detected label. */
+  transformLabel?: (oldLabel: string, detected: string) => string;
+
+  /**
+   * Process a chunk of output data. Returns the detected new label, or null.
+   */
+  processChunk(data: Buffer | string): string | null {
+    const buf = typeof data === "string" ? data : this.decoder.write(data);
+    this.lineBuffer += buf;
+    // Split on any line ending style
+    const lines = this.lineBuffer.split(/\r\n|\n|\r/);
+    // Keep the last (possibly incomplete) chunk
+    this.lineBuffer = lines.pop() || "";
+
+    let detected: string | null = null;
+
+    for (const line of lines) {
+      const result = this._matchLine(line);
+      if (result) detected = result;
+    }
+
+    // Also check the incomplete line buffer - handles the case where
+    // rename output arrives without a trailing newline
+    if (this.lineBuffer) {
+      const result = this._matchLine(this.lineBuffer);
+      if (result) detected = result;
+    }
+
+    return detected;
+  }
+
+  private _matchLine(line: string): string | null {
+    const clean = stripAnsi(line);
+    const match = clean.match(this.renamePattern);
+    if (match) {
+      return match[1].trim();
+    }
+    return null;
+  }
+
+  /** Reset the internal buffer state. */
+  reset(): void {
+    this.lineBuffer = "";
+    this.decoder = new StringDecoder("utf8");
+  }
+}
