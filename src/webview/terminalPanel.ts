@@ -167,6 +167,7 @@ export class TerminalPanel {
   private resizeObserver: ResizeObserver;
   private tabBarResizeObserver: ResizeObserver | null = null;
   private tabBarOverflowFrame: number | null = null;
+  private dismissOverflowMenu: (() => void) | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
   private workItems: WorkItemDTO[] = [];
@@ -559,6 +560,8 @@ export class TerminalPanel {
     launchBtn.textContent = "...";
     launchBtn.title = "More profile actions";
     launchBtn.setAttribute("aria-label", "More profile actions");
+    launchBtn.setAttribute("aria-haspopup", "menu");
+    launchBtn.setAttribute("aria-expanded", "false");
     launchBtn.addEventListener("click", () => {
       this.showOverflowMenu(launchBtn);
     });
@@ -728,30 +731,34 @@ export class TerminalPanel {
   // -------------------------------------------------------------------------
 
   private showOverflowMenu(anchorEl: HTMLElement): void {
-    const existing = document.querySelector(".wt-context-menu");
-    if (existing) existing.remove();
+    const wasExpanded = anchorEl.getAttribute("aria-expanded") === "true";
+    this.dismissOverflowMenu?.();
+    if (wasExpanded) {
+      return;
+    }
 
     const menu = document.createElement("div");
     menu.className = "wt-context-menu";
     menu.setAttribute("role", "menu");
     menu.tabIndex = -1;
-    menu.style.cssText =
-      "position: fixed; z-index: 1000; " +
-      "background: var(--vscode-menu-background); color: var(--vscode-menu-foreground); " +
-      "border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border)); " +
-      "border-radius: 4px; padding: 4px 0; min-width: 180px; " +
-      "box-shadow: 0 2px 8px rgba(0,0,0,0.3);";
-
-    const menuItemStyle =
-      "display: block; width: 100%; padding: 4px 16px; cursor: pointer; font-size: 12px; " +
-      "white-space: nowrap; text-align: left; border: none; background: transparent; color: inherit;";
+    menu.style.minWidth = "180px";
+    anchorEl.setAttribute("aria-expanded", "true");
 
     const dismissMenu = () => {
+      if (!menu.isConnected) {
+        anchorEl.setAttribute("aria-expanded", "false");
+        this.dismissOverflowMenu = null;
+        return;
+      }
+
       menu.remove();
       document.removeEventListener("mousedown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
+      anchorEl.setAttribute("aria-expanded", "false");
+      this.dismissOverflowMenu = null;
       anchorEl.focus();
     };
+    this.dismissOverflowMenu = dismissMenu;
 
     const menuItems: HTMLButtonElement[] = [];
 
@@ -767,17 +774,11 @@ export class TerminalPanel {
     const addItem = (label: string, action: () => void) => {
       const el = document.createElement("button");
       el.type = "button";
+      el.className = "wt-context-menu-item wt-context-menu-item-button";
       el.setAttribute("role", "menuitem");
       el.textContent = label;
-      el.style.cssText = menuItemStyle;
       el.addEventListener("mouseenter", () => {
-        el.style.background = "var(--vscode-menu-selectionBackground)";
-        el.style.color = "var(--vscode-menu-selectionForeground)";
         el.focus();
-      });
-      el.addEventListener("mouseleave", () => {
-        el.style.background = "";
-        el.style.color = "";
       });
       el.addEventListener("click", () => {
         dismissMenu();
