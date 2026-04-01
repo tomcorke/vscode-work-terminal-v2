@@ -228,8 +228,15 @@ export function renderProfileEditor(profile: AgentProfile | null): string {
       </label>
 
       <label>Context prompt template
-        <textarea name="contextPrompt" placeholder="Placeholders: $title, $state, $filePath, $id">${escapeHtml(p.contextPrompt)}</textarea>
+        <textarea name="contextPrompt" placeholder="Enter context prompt...">${escapeHtml(p.contextPrompt)}</textarea>
       </label>
+      <div class="wt-field-hint">
+        Available variables:
+        <code>$title</code> - work item title,
+        <code>$state</code> - work item state,
+        <code>$filePath</code> - file path,
+        <code>$id</code> - work item ID
+      </div>
 
       <h4>Tab bar button</h4>
 

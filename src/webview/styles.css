@@ -1091,6 +1091,22 @@ a.wt-card-source--jira:hover {
   resize: vertical;
 }
 
+.wt-field-hint {
+  margin: 2px 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.85;
+}
+
+.wt-field-hint code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 .wt-profile-editor-buttons {
   display: flex;
   justify-content: flex-end;
