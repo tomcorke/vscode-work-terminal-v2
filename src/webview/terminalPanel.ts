@@ -177,6 +177,7 @@ export class TerminalPanel {
     this.taskTitleTextEl = document.getElementById("task-title-text")!;
 
     injectXtermCss();
+    this.renderTabBar();
     this.renderSpawnButtons();
 
     // Observe terminal wrapper resizes to refit active terminal
@@ -397,6 +398,14 @@ export class TerminalPanel {
 
   private renderTabBar(): void {
     this.tabsContainerEl.innerHTML = "";
+
+    if (this.tabs.length === 0) {
+      const placeholderEl = document.createElement("div");
+      placeholderEl.className = "wt-tab wt-tab-placeholder";
+      placeholderEl.textContent = "No sessions yet";
+      this.tabsContainerEl.appendChild(placeholderEl);
+      return;
+    }
 
     for (let i = 0; i < this.tabs.length; i++) {
       const tab = this.tabs[i];
