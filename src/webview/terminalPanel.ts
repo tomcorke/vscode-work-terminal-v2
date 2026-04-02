@@ -716,14 +716,30 @@ export class TerminalPanel {
     menu.tabIndex = -1;
     menu.style.minWidth = "180px";
     anchorEl.setAttribute("aria-expanded", "true");
+    let menuDismissed = false;
+    let documentListenersAttached = false;
+
+    const detachDocumentListeners = () => {
+      if (!documentListenersAttached) {
+        return;
+      }
+
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+      documentListenersAttached = false;
+    };
 
     const dismissMenu = () => {
+      if (menuDismissed) {
+        return;
+      }
+
+      menuDismissed = true;
       if (this.overflowMenuFrame !== null) {
         cancelAnimationFrame(this.overflowMenuFrame);
         this.overflowMenuFrame = null;
       }
-      document.removeEventListener("mousedown", dismiss);
-      document.removeEventListener("keydown", onKeyDown);
+      detachDocumentListeners();
       anchorEl.setAttribute("aria-expanded", "false");
       this.dismissOverflowMenu = null;
       if (menu.isConnected) {
@@ -829,11 +845,12 @@ export class TerminalPanel {
 
     this.overflowMenuFrame = requestAnimationFrame(() => {
       this.overflowMenuFrame = null;
-      if (this.dismissOverflowMenu !== dismissMenu || this.disposed || !menu.isConnected) {
+      if (menuDismissed || this.dismissOverflowMenu !== dismissMenu || this.disposed || !menu.isConnected) {
         return;
       }
       document.addEventListener("mousedown", dismiss);
       document.addEventListener("keydown", onKeyDown);
+      documentListenersAttached = true;
       focusItem(0);
     });
   }
