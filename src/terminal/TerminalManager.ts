@@ -14,6 +14,7 @@ import { AgentStateDetector, aggregateState } from "./AgentStateDetector";
 import type { AgentState } from "./AgentStateDetector";
 import { AgentSessionRename } from "../agents/AgentSessionRename";
 import { buildAgentLaunchArgs, buildClaudeArgs, buildCopilotArgs, generateSessionId, augmentPath } from "./AgentLauncher";
+import type { NativePtyStatus } from "./nodePtySupport";
 
 // ---------------------------------------------------------------------------
 // node-pty types (optional dependency)
@@ -49,11 +50,16 @@ interface NodePtyModule {
 // ---------------------------------------------------------------------------
 
 let nodePty: NodePtyModule | null = null;
+let nodePtyModulePath: string | null = null;
+let nodePtyLoadError: string | null = null;
 try {
   // node-pty is an optional native dependency - fall back gracefully
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  nodePty = require("node-pty") as NodePtyModule;
-} catch {
+  nodePtyModulePath = require.resolve("node-pty");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  nodePty = require(nodePtyModulePath) as NodePtyModule;
+} catch (err) {
+  nodePtyLoadError = err instanceof Error ? err.message : String(err);
   // Will use child_process fallback
 }
 
@@ -485,6 +491,15 @@ export class TerminalManager {
       });
     }
     return result;
+  }
+
+  getNativePtyStatus(): NativePtyStatus {
+    return {
+      available: nodePty !== null,
+      modulePath: nodePtyModulePath,
+      loadError: nodePtyLoadError,
+      electronVersion: process.versions.electron ?? null,
+    };
   }
 
   /**

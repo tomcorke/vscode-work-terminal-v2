@@ -1,8 +1,16 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
+import { spawn, spawnSync } from "child_process";
 import { WorkTerminalPanel } from "./panels/WorkTerminalPanel";
 import { SidebarProvider } from "./panels/SidebarProvider";
 import { TaskAgentAdapter } from "./adapters/task-agent/index";
 import { checkHookStatus, installHooks, removeHooks } from "./agents/ClaudeHookManager";
+import {
+  createNodePtyRebuildPlan,
+  formatNodePtyRebuildFailure,
+  getNodePtyRebuildUnsupportedReason,
+} from "./terminal/nodePtySupport";
 
 export function activate(context: vscode.ExtensionContext) {
   const sidebarProvider = new SidebarProvider(context.extensionUri);
@@ -222,6 +230,101 @@ export function activate(context: vscode.ExtensionContext) {
       await vscode.env.clipboard.writeText(text);
       vscode.window.showInformationMessage("Session diagnostics copied to clipboard.");
     })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workTerminal.rebuildNodePty", async () => {
+      const extension = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
+      const isDevelopmentMode =
+        extension?.extensionMode === vscode.ExtensionMode.Development
+        || extension?.extensionMode === vscode.ExtensionMode.Test;
+
+      let plan;
+      try {
+        plan = createNodePtyRebuildPlan(process.versions.electron);
+      } catch (err) {
+        vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
+        return;
+      }
+
+      const nodePtyPackagePath = path.join(
+        context.extensionPath,
+        "node_modules",
+        "node-pty",
+        "package.json",
+      );
+      let unsupportedReason = getNodePtyRebuildUnsupportedReason({
+        isDevelopmentMode,
+        hasNodePtyDependency: fs.existsSync(nodePtyPackagePath),
+        pnpmAvailable: true,
+      });
+      if (!unsupportedReason) {
+        const pnpmCheck = spawnSync(plan.command, ["--version"], {
+          cwd: context.extensionPath,
+          env: process.env,
+          encoding: "utf8",
+        });
+        unsupportedReason = getNodePtyRebuildUnsupportedReason({
+          isDevelopmentMode,
+          hasNodePtyDependency: true,
+          pnpmAvailable: pnpmCheck.error == null && pnpmCheck.status === 0,
+        });
+      }
+      if (unsupportedReason) {
+        vscode.window.showErrorMessage(unsupportedReason);
+        return;
+      }
+
+      try {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Rebuilding node-pty for Electron ${process.versions.electron}`,
+          },
+          () => new Promise<void>((resolve, reject) => {
+            const child = spawn(plan.command, plan.args, {
+              cwd: context.extensionPath,
+              env: {
+                ...process.env,
+                ...plan.env,
+              },
+              stdio: "pipe",
+            });
+
+            let stdout = "";
+            let stderr = "";
+            child.stdout?.on("data", (chunk: Buffer) => {
+              stdout += chunk.toString("utf8");
+            });
+            child.stderr?.on("data", (chunk: Buffer) => {
+              stderr += chunk.toString("utf8");
+            });
+
+            child.on("error", reject);
+            child.on("close", (code, signal) => {
+              if (code === 0) {
+                resolve();
+                return;
+              }
+
+              reject(new Error(formatNodePtyRebuildFailure(code, signal, stdout, stderr)));
+            });
+          }),
+        );
+
+        const action = await vscode.window.showInformationMessage(
+          "node-pty rebuilt successfully. Reload VS Code to pick up the new native module.",
+          "Reload Window",
+        );
+        if (action === "Reload Window") {
+          await vscode.commands.executeCommand("workbench.action.reloadWindow");
+        }
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to rebuild node-pty: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }),
   );
 
   // Hook management commands (work without the panel open)

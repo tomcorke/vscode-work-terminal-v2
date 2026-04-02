@@ -18,6 +18,7 @@ import { showLaunchModal, type LaunchModalResult } from "../agents/AgentLaunchMo
 import { parseExtraArgs } from "../terminal/AgentLauncher";
 import { HookBannerService } from "../agents/HookBannerService";
 import { installHooks, removeHooks, checkHookStatus } from "../agents/ClaudeHookManager";
+import { formatNodePtyLoadWarning } from "../terminal/nodePtySupport";
 
 /**
  * Singleton panel that hosts the 2-panel webview layout.
@@ -54,6 +55,7 @@ export class WorkTerminalPanel {
   /** URI of the detail editor tab opened by the extension (null if none). */
   private _detailEditorUri: vscode.Uri | null = null;
   private _renameDisposable: vscode.Disposable | null = null;
+  private _nodePtyWarningShown = false;
 
   private constructor(extensionUri: vscode.Uri) {
     this._extensionUri = extensionUri;
@@ -966,7 +968,7 @@ export class WorkTerminalPanel {
   private _handleLaunchTerminal(itemId: string, profile?: string): void {
     const sessionType: SessionType = profile && isSessionType(profile) ? profile : "shell";
     const cwd = this._resolveItemCwd(itemId);
-    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
+    this._createTerminal({ sessionType, itemId, cwd });
   }
 
   private _handleCreateTerminal(terminalType: string, itemId?: string): void {
@@ -977,7 +979,7 @@ export class WorkTerminalPanel {
     };
     const sessionType = typeMap[terminalType] || "shell";
     const cwd = itemId ? this._resolveItemCwd(itemId) : undefined;
-    this._terminalManager.createTerminal({ sessionType, itemId, cwd });
+    this._createTerminal({ sessionType, itemId, cwd });
   }
 
   // ---------------------------------------------------------------------------
@@ -991,7 +993,7 @@ export class WorkTerminalPanel {
       return;
     }
     if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -999,7 +1001,7 @@ export class WorkTerminalPanel {
         resumeSessionId: entry.claudeSessionId,
       });
     } else {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1016,7 +1018,7 @@ export class WorkTerminalPanel {
     if (!entry) return;
 
     if (entry.recoveryMode === "resume" && entry.claudeSessionId) {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1024,7 +1026,7 @@ export class WorkTerminalPanel {
         resumeSessionId: entry.claudeSessionId,
       });
     } else {
-      this._terminalManager.createTerminal({
+      this._createTerminal({
         sessionType: entry.sessionType,
         itemId: entry.itemId,
         label: entry.label,
@@ -1115,7 +1117,7 @@ export class WorkTerminalPanel {
     const resolvedArgs = extraArgs ?? this._profileManager.resolveArguments(profile);
     const args = resolvedArgs ? parseExtraArgs(resolvedArgs) : undefined;
 
-    this._terminalManager.createTerminal({
+    this._createTerminal({
       sessionType,
       itemId,
       command,
@@ -1123,6 +1125,44 @@ export class WorkTerminalPanel {
       label,
       args,
       contextPrompt,
+    });
+  }
+
+  private _createTerminal(
+    options: Parameters<TerminalManager["createTerminal"]>[0],
+  ): void {
+    this._maybeWarnAboutNodePtyFallback();
+    this._terminalManager.createTerminal(options);
+  }
+
+  private _maybeWarnAboutNodePtyFallback(): void {
+    if (this._nodePtyWarningShown) {
+      return;
+    }
+
+    const nativePtyStatus = this._terminalManager.getNativePtyStatus();
+    if (nativePtyStatus.available || !nativePtyStatus.loadError) {
+      return;
+    }
+
+    this._nodePtyWarningShown = true;
+    const extension = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
+    const canRepairLocally =
+      extension?.extensionMode === vscode.ExtensionMode.Development
+      || extension?.extensionMode === vscode.ExtensionMode.Test;
+    const actions = canRepairLocally
+      ? ["Rebuild node-pty", "Copy Diagnostics"] as const
+      : ["Copy Diagnostics"] as const;
+
+    void vscode.window.showWarningMessage(
+      formatNodePtyLoadWarning(nativePtyStatus),
+      ...actions,
+    ).then((selection) => {
+      if (selection === "Rebuild node-pty" && canRepairLocally) {
+        void vscode.commands.executeCommand("workTerminal.rebuildNodePty");
+      } else if (selection === "Copy Diagnostics") {
+        void vscode.commands.executeCommand("workTerminal.copyDiagnostics");
+      }
     });
   }
 
@@ -1305,9 +1345,19 @@ export class WorkTerminalPanel {
     const lines: string[] = [];
     const ext = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
     const version = ext?.packageJSON?.version ?? "unknown";
+    const nativePtyStatus = this._terminalManager.getNativePtyStatus();
     lines.push(`# Work Terminal Diagnostics`);
     lines.push(`Version: ${version}`);
     lines.push(`Timestamp: ${new Date().toISOString()}`);
+    lines.push("");
+
+    lines.push("## Native PTY");
+    lines.push(`Available: ${nativePtyStatus.available ? "yes" : "no"}`);
+    lines.push(`Electron: ${nativePtyStatus.electronVersion ?? "unknown"}`);
+    lines.push(`Module path: ${nativePtyStatus.modulePath ?? "unresolved"}`);
+    if (nativePtyStatus.loadError) {
+      lines.push(`Load error: ${nativePtyStatus.loadError}`);
+    }
     lines.push("");
 
     // Active sessions
@@ -1375,6 +1425,10 @@ export class WorkTerminalPanel {
     // Diagnostics / problem detection
     lines.push("## Derived Diagnostics");
     const problems: string[] = [];
+
+    if (!nativePtyStatus.available && nativePtyStatus.loadError) {
+      problems.push(`node-pty native binding unavailable: ${nativePtyStatus.loadError}`);
+    }
 
     // Sessions with no item attached
     const unattached = allSessions.filter((s) => !s.itemId);
