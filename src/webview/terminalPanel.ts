@@ -138,6 +138,7 @@ export class TerminalPanel {
   private resizeObserver: ResizeObserver;
   private tabBarResizeObserver: ResizeObserver | null = null;
   private tabBarOverflowFrame: number | null = null;
+  private overflowMenuFrame: number | null = null;
   private dismissOverflowMenu: (() => void) | null = null;
   private searchBarVisible = false;
   private buttonProfiles: ButtonProfileInfo[] = [];
@@ -715,20 +716,35 @@ export class TerminalPanel {
     menu.tabIndex = -1;
     menu.style.minWidth = "180px";
     anchorEl.setAttribute("aria-expanded", "true");
+    let menuDismissed = false;
+    let documentListenersAttached = false;
 
-    const dismissMenu = () => {
-      if (!menu.isConnected) {
-        anchorEl.setAttribute("aria-expanded", "false");
-        this.dismissOverflowMenu = null;
+    const detachDocumentListeners = () => {
+      if (!documentListenersAttached) {
         return;
       }
 
-      menu.remove();
       document.removeEventListener("mousedown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
+      documentListenersAttached = false;
+    };
+
+    const dismissMenu = () => {
+      if (menuDismissed) {
+        return;
+      }
+
+      menuDismissed = true;
+      this.cancelPendingOverflowMenuFrame();
+      detachDocumentListeners();
       anchorEl.setAttribute("aria-expanded", "false");
       this.dismissOverflowMenu = null;
-      anchorEl.focus();
+      if (menu.isConnected) {
+        menu.remove();
+      }
+      if (!this.disposed && anchorEl.isConnected) {
+        anchorEl.focus();
+      }
     };
     this.dismissOverflowMenu = dismissMenu;
 
@@ -824,14 +840,20 @@ export class TerminalPanel {
       }
     };
 
-    requestAnimationFrame(() => {
+    this.overflowMenuFrame = requestAnimationFrame(() => {
+      this.overflowMenuFrame = null;
+      if (menuDismissed || this.dismissOverflowMenu !== dismissMenu || this.disposed || !menu.isConnected) {
+        return;
+      }
       document.addEventListener("mousedown", dismiss);
       document.addEventListener("keydown", onKeyDown);
+      documentListenersAttached = true;
       focusItem(0);
     });
   }
 
   private showTabContextMenu(index: number, x: number, y: number): void {
+    this.dismissOverflowMenu?.();
     const existing = document.querySelector(".wt-context-menu");
     if (existing) existing.remove();
 
@@ -1304,6 +1326,12 @@ export class TerminalPanel {
     this.pendingTabSwitchFrame = null;
   }
 
+  private cancelPendingOverflowMenuFrame(): void {
+    if (this.overflowMenuFrame === null) return;
+    cancelAnimationFrame(this.overflowMenuFrame);
+    this.overflowMenuFrame = null;
+  }
+
   private isLiveTab(tab: TerminalTab): boolean {
     return !this.disposed && this.tabs.includes(tab);
   }
@@ -1320,6 +1348,10 @@ export class TerminalPanel {
 
   dispose(): void {
     this.disposed = true;
+    const dismissOverflowMenu = this.dismissOverflowMenu;
+    this.dismissOverflowMenu = null;
+    this.cancelPendingOverflowMenuFrame();
+    dismissOverflowMenu?.();
     this.cancelPendingTabSwitchFrame();
     this.resizeObserver.disconnect();
     this.tabBarResizeObserver?.disconnect();
