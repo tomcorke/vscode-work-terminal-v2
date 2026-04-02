@@ -101,7 +101,7 @@ esbuild produces three bundles in `dist/`:
 
 ## Known constraints
 
-- **node-pty** - Required for real PTY terminal sessions. Native module that needs rebuild per platform/Electron version. If the Extension Development Host cannot load `pty.node`, run the `Work Terminal: Rebuild node-pty Native Module` command and reload the window.
+- **node-pty** - Required for real PTY terminal sessions. Native module that needs rebuild per platform/Electron version. If the Extension Development Host cannot load `pty.node`, run the `Work Terminal: Rebuild node-pty Native Module` command and reload the window. That repair path is only supported from a local source checkout with `pnpm` and `node_modules/node-pty` present.
 - **xterm.js CSS** - Full CSS embedded inline via the webview HTML since webviews cannot load node_modules CSS directly.
 - **Tilde expansion** - Always expand `~` via `os.homedir()` before passing paths to spawn or file operations.
 - **Webview isolation** - Webviews run in an iframe sandbox. All communication with the extension host is via `postMessage`. No shared memory, no direct DOM access from extension code.

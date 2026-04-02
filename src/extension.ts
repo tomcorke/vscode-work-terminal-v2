@@ -1,10 +1,16 @@
 import * as vscode from "vscode";
-import { spawn } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { spawn, spawnSync } from "child_process";
 import { WorkTerminalPanel } from "./panels/WorkTerminalPanel";
 import { SidebarProvider } from "./panels/SidebarProvider";
 import { TaskAgentAdapter } from "./adapters/task-agent/index";
 import { checkHookStatus, installHooks, removeHooks } from "./agents/ClaudeHookManager";
-import { createNodePtyRebuildPlan } from "./terminal/nodePtySupport";
+import {
+  createNodePtyRebuildPlan,
+  formatNodePtyRebuildFailure,
+  getNodePtyRebuildUnsupportedReason,
+} from "./terminal/nodePtySupport";
 
 export function activate(context: vscode.ExtensionContext) {
   const sidebarProvider = new SidebarProvider(context.extensionUri);
@@ -229,21 +235,43 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("workTerminal.rebuildNodePty", async () => {
       const extension = vscode.extensions.getExtension("tomcorke.vscode-work-terminal-v2");
-      const canRepairLocally =
+      const isDevelopmentMode =
         extension?.extensionMode === vscode.ExtensionMode.Development
         || extension?.extensionMode === vscode.ExtensionMode.Test;
-      if (!canRepairLocally) {
-        vscode.window.showInformationMessage(
-          "node-pty rebuild is only available from a local Extension Development Host.",
-        );
-        return;
-      }
 
       let plan;
       try {
         plan = createNodePtyRebuildPlan(process.versions.electron);
       } catch (err) {
         vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
+        return;
+      }
+
+      const nodePtyPackagePath = path.join(
+        context.extensionPath,
+        "node_modules",
+        "node-pty",
+        "package.json",
+      );
+      let unsupportedReason = getNodePtyRebuildUnsupportedReason({
+        isDevelopmentMode,
+        hasNodePtyDependency: fs.existsSync(nodePtyPackagePath),
+        pnpmAvailable: true,
+      });
+      if (!unsupportedReason) {
+        const pnpmCheck = spawnSync(plan.command, ["--version"], {
+          cwd: context.extensionPath,
+          env: process.env,
+          encoding: "utf8",
+        });
+        unsupportedReason = getNodePtyRebuildUnsupportedReason({
+          isDevelopmentMode,
+          hasNodePtyDependency: true,
+          pnpmAvailable: pnpmCheck.error == null && pnpmCheck.status === 0,
+        });
+      }
+      if (unsupportedReason) {
+        vscode.window.showErrorMessage(unsupportedReason);
         return;
       }
 
@@ -273,18 +301,13 @@ export function activate(context: vscode.ExtensionContext) {
             });
 
             child.on("error", reject);
-            child.on("exit", (code, signal) => {
+            child.on("close", (code, signal) => {
               if (code === 0) {
                 resolve();
                 return;
               }
 
-              const combinedOutput = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n\n");
-              const fallbackReason =
-                signal != null
-                  ? `node-pty rebuild failed due to signal ${signal}.`
-                  : `node-pty rebuild failed with exit code ${code ?? "unknown"}.`;
-              reject(new Error(combinedOutput || fallbackReason));
+              reject(new Error(formatNodePtyRebuildFailure(code, signal, stdout, stderr)));
             });
           }),
         );
