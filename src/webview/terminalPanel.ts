@@ -735,10 +735,7 @@ export class TerminalPanel {
       }
 
       menuDismissed = true;
-      if (this.overflowMenuFrame !== null) {
-        cancelAnimationFrame(this.overflowMenuFrame);
-        this.overflowMenuFrame = null;
-      }
+      this.cancelPendingOverflowMenuFrame();
       detachDocumentListeners();
       anchorEl.setAttribute("aria-expanded", "false");
       this.dismissOverflowMenu = null;
@@ -1329,6 +1326,12 @@ export class TerminalPanel {
     this.pendingTabSwitchFrame = null;
   }
 
+  private cancelPendingOverflowMenuFrame(): void {
+    if (this.overflowMenuFrame === null) return;
+    cancelAnimationFrame(this.overflowMenuFrame);
+    this.overflowMenuFrame = null;
+  }
+
   private isLiveTab(tab: TerminalTab): boolean {
     return !this.disposed && this.tabs.includes(tab);
   }
@@ -1345,7 +1348,10 @@ export class TerminalPanel {
 
   dispose(): void {
     this.disposed = true;
-    this.dismissOverflowMenu?.();
+    const dismissOverflowMenu = this.dismissOverflowMenu;
+    this.dismissOverflowMenu = null;
+    this.cancelPendingOverflowMenuFrame();
+    dismissOverflowMenu?.();
     this.cancelPendingTabSwitchFrame();
     this.resizeObserver.disconnect();
     this.tabBarResizeObserver?.disconnect();
